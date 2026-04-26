@@ -11,6 +11,10 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
 
 server:
   port: ${PORT:8080}
@@ -38,3 +42,15 @@ debug: false
 logging:
   level:
     root: INFO
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+
+clm:
+  api:
+    version: v1
+  logging:
+    correlation-header: X-Correlation-ID

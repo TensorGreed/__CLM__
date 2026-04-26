@@ -32,8 +32,8 @@ class SecurityConfigurationTests {
 	}
 
 	@Test
-	void nonHealthEndpointsAreClosedUntilAuthIsImplemented() {
-		ResponseEntity<String> response = restTemplate.getForEntity(url("/api/v1"), String.class);
+	void nonFoundationEndpointsAreClosedUntilAuthIsImplemented() {
+		ResponseEntity<String> response = restTemplate.getForEntity(url("/api/v1/admin"), String.class);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 	}

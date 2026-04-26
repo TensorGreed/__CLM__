@@ -44,7 +44,8 @@ Last updated: 2026-04-26.
 | --- | --- | --- | --- | --- |
 | R0-E01: Product And Architecture Foundation | Done | Product feature catalog, roadmap, AI-agent guidance, Claude guidance, skill cards, and docsite strategy. | Documentation review and markdown lint. | Planning artifacts are intentionally root-level and agent-readable. |
 | R1-E01: Repository And Build Foundation | Done | Spring Boot backend skeleton, React TypeScript frontend shell, local Compose stack, baseline CI, dependency automation, docs tooling, and developer/operator docs. | Backend tests, frontend lint/tests/build, docs lint, and Compose config validation passed. | `docker compose up` could not be runtime-verified until Docker Desktop Linux engine is running locally. |
-| R1-E02: Backend Platform Core | Next | Versioned REST API conventions, migrations, structured logs/correlation IDs, audit event foundation, and async task abstraction. | Pending. | Recommended next implementation slice. |
+| R1-E02: Backend Platform Core | Done | `/api/v1` foundation, OpenAPI generation, stable error envelope, query primitives, Flyway baseline migration, JSON logs with correlation IDs, audit event model/service, async task model/runner, and task detail API. | Backend tests, docs lint, Compose config, Compose startup, API health, API root, OpenAPI JSON, and UI probes passed. | No certificate business endpoints, auth/RBAC, plugins, or MCP were added. |
+| R1-E03: Identity, Tenancy, And RBAC | Next | Bootstrap admin, OIDC login, tenant/org scope, roles/permissions, reason capture, and service accounts. | Pending. | Recommended next implementation slice. |
 
 ## Epic R0-E01: Product And Architecture Foundation
 
