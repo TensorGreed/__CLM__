@@ -123,6 +123,21 @@ public class ManagedCertificate {
 		this.updatedAt = now;
 	}
 
+	public void replaceTags(Set<String> tags, Instant now) {
+		this.tags.clear();
+		this.tags.addAll(tags);
+		this.updatedAt = now;
+	}
+
+	public void transitionStatus(CertificateStatus status, Instant now) {
+		this.status = status;
+		this.updatedAt = now;
+	}
+
+	public void touch(Instant now) {
+		this.updatedAt = now;
+	}
+
 	public UUID id() {
 		return id;
 	}

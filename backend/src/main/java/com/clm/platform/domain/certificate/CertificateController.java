@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,6 +35,12 @@ public class CertificateController {
 		return certificateInventoryService.importCertificate(request);
 	}
 
+	@PostMapping(ApiPaths.API_V1 + "/certificates/source-observations")
+	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_IMPORT')")
+	CertificateObservationResponse observeCertificate(@Valid @RequestBody CertificateObservationRequest request) {
+		return certificateInventoryService.observeCertificate(request);
+	}
+
 	@GetMapping(ApiPaths.API_V1 + "/certificates")
 	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_READ')")
 	PageResponse<CertificateSummaryResponse> listCertificates(
@@ -53,5 +60,35 @@ public class CertificateController {
 	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_READ')")
 	CertificateDetailResponse getCertificate(@PathVariable UUID certificateId) {
 		return certificateInventoryService.get(certificateId);
+	}
+
+	@PutMapping(ApiPaths.API_V1 + "/certificates/{certificateId}/tags")
+	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_MANAGE')")
+	CertificateTagsResponse updateTags(
+			@PathVariable UUID certificateId,
+			@Valid @RequestBody CertificateTagsUpdateRequest request) {
+		return certificateInventoryService.updateTags(certificateId, request);
+	}
+
+	@PutMapping(ApiPaths.API_V1 + "/certificates/{certificateId}/metadata")
+	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_MANAGE')")
+	CertificateMetadataResponse updateMetadata(
+			@PathVariable UUID certificateId,
+			@Valid @RequestBody CertificateMetadataUpdateRequest request) {
+		return certificateInventoryService.updateMetadata(certificateId, request);
+	}
+
+	@PostMapping(ApiPaths.API_V1 + "/certificates/{certificateId}/status")
+	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_MANAGE')")
+	CertificateStatusUpdateResponse updateStatus(
+			@PathVariable UUID certificateId,
+			@Valid @RequestBody CertificateStatusUpdateRequest request) {
+		return certificateInventoryService.updateStatus(certificateId, request);
+	}
+
+	@GetMapping(ApiPaths.API_V1 + "/certificates/{certificateId}/status-history")
+	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_READ')")
+	List<CertificateStatusHistoryResponse> getStatusHistory(@PathVariable UUID certificateId) {
+		return certificateInventoryService.statusHistory(certificateId);
 	}
 }

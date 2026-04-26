@@ -4,7 +4,7 @@ This repository is being shaped into an enterprise certificate lifecycle managem
 
 ## Implementation Status
 
-R1-E01 through R1-E03 are implemented as the initial repository, backend platform, and identity foundation. R1-E04 is in progress with the backend certificate inventory core now available:
+R1-E01 through R1-E05-S03 are implemented as the secure platform foundation, backend certificate inventory core, and first operational inventory UI:
 
 - Spring Boot backend skeleton in [backend](backend).
 - React TypeScript frontend shell in [frontend](frontend).
@@ -13,9 +13,10 @@ R1-E01 through R1-E03 are implemented as the initial repository, backend platfor
 - Developer and operator setup docs in [docs](docs).
 - `/api/v1` backend foundation with OpenAPI, stable error envelopes, correlation IDs, audit events, and async task runs.
 - First-run bootstrap admin flow, local Basic auth, optional OIDC login, tenant and organization APIs, built-in RBAC, sensitive-action reason capture, and service account API tokens.
-- Certificate inventory backend APIs for PEM-only certificate import, parsed certificate/version metadata, fingerprint deduplication, tenant-scoped search, detail retrieval, and import audit events.
+- Certificate inventory backend APIs for PEM-only certificate import, parsed certificate/version metadata, source observations, fingerprint deduplication, tenant-scoped search, detail retrieval, tags, typed metadata, status history, and audit events.
+- Role-aware frontend shell, certificate inventory table, filters, saved columns, pagination, bulk selection, and certificate detail pages for versions, chain, sources, metadata, status history, automation placeholders, and audit timeline.
 
-Certificate inventory frontend screens, certificate private key handling, issuance, renewal, destinations, plugins, and MCP are not implemented yet.
+Certificate private key handling, issuance, renewal, destinations, plugins, MCP, frontend settings pages, and global cross-resource search are not implemented yet.
 
 Start with these root planning files:
 

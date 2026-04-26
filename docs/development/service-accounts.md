@@ -37,7 +37,8 @@ The token scope is converted into `PERMISSION_*` authorities. Service account pr
 Useful inventory scopes:
 
 - `CERTIFICATE_READ` for certificate list/detail automation.
-- `CERTIFICATE_IMPORT` for PEM certificate import automation.
+- `CERTIFICATE_IMPORT` for PEM certificate import and source observation automation.
+- `CERTIFICATE_MANAGE` for tag, metadata, and status management automation.
 
 Use the smallest scope set needed by each integration.
 

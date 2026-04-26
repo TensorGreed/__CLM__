@@ -67,3 +67,5 @@ The default database values match `docker-compose.yml`.
 - Certificate inventory import, search, and detail APIs.
 - Public PEM certificate parsing with private-key rejection.
 - Certificate version fingerprint deduplication.
+- Certificate source observation records.
+- Certificate tag, typed metadata, and status history APIs.

@@ -37,6 +37,20 @@ The migration includes indexes for tenant joins, role lookups, service account l
 
 The migration adds indexes for tenant/status, owner, issuer, expiry, current version lookup, version history lookup, chain lookup, and tag lookup. The schema intentionally does not store private key material in R1-E04.
 
+## Certificate Inventory Management Migration
+
+`V4__certificate_inventory_management.sql` creates:
+
+- `certificate_source_observations`
+- `certificate_metadata_entries`
+- `certificate_status_history`
+
+Source observations record which connector, discovery source, or future automation observed a public certificate version. Repeated observations from the same source identity update `last_seen_at` and `observation_count` instead of creating duplicates.
+
+Metadata entries store typed custom metadata values with one row per certificate and metadata key. Status history stores explicit transitions, actor identifiers, reasons, and timestamps.
+
+The migration adds indexes for source lookup, certificate observation lookup, metadata key lookup, and status-history timelines.
+
 ## Test Profile
 
 The `test` profile runs Flyway against H2 in PostgreSQL compatibility mode and validates JPA mappings with `ddl-auto: validate`.

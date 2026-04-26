@@ -2,6 +2,7 @@ package com.clm.platform.domain.certificate;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,9 +24,12 @@ public record CertificateDetailResponse(
 	String sha1Fingerprint,
 	Set<String> subjectAlternativeNames,
 	Set<String> tags,
+	Map<String, CertificateMetadataValueResponse> metadata,
 	CertificateVersionResponse currentVersion,
 	List<CertificateVersionResponse> versions,
 	List<CertificateChainEntryResponse> chain,
+	List<CertificateSourceObservationResponse> sourceObservations,
+	List<CertificateStatusHistoryResponse> statusHistory,
 	List<CertificateAuditEventResponse> auditTimeline) {
 
 	static CertificateDetailResponse from(
@@ -33,6 +37,9 @@ public record CertificateDetailResponse(
 			CertificateVersion currentVersion,
 			List<CertificateVersion> versions,
 			List<CertificateChainEntry> chainEntries,
+			List<CertificateSourceObservation> sourceObservations,
+			List<CertificateMetadataEntry> metadataEntries,
+			List<CertificateStatusHistory> statusHistory,
 			List<AuditEvent> auditEvents) {
 		return new CertificateDetailResponse(
 			certificate.id(),
@@ -50,9 +57,16 @@ public record CertificateDetailResponse(
 			certificate.sha1Fingerprint(),
 			certificate.subjectAlternativeNames(),
 			certificate.tags(),
+			metadataEntries.stream().collect(java.util.stream.Collectors.toMap(
+				CertificateMetadataEntry::key,
+				CertificateMetadataValueResponse::from,
+				(left, right) -> right,
+				java.util.TreeMap::new)),
 			CertificateVersionResponse.from(currentVersion),
 			versions.stream().map(CertificateVersionResponse::from).toList(),
 			chainEntries.stream().map(CertificateChainEntryResponse::from).toList(),
+			sourceObservations.stream().map(CertificateSourceObservationResponse::from).toList(),
+			statusHistory.stream().map(CertificateStatusHistoryResponse::from).toList(),
 			auditEvents.stream().map(CertificateAuditEventResponse::from).toList());
 	}
 }

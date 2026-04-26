@@ -13,6 +13,9 @@ import org.springframework.test.context.jdbc.SqlGroup;
 @SqlGroup({
 	@Sql(
 		statements = {
+			"DELETE FROM certificate_status_history",
+			"DELETE FROM certificate_metadata_entries",
+			"DELETE FROM certificate_source_observations",
 			"DELETE FROM certificate_tags",
 			"DELETE FROM certificate_chain_entries",
 			"UPDATE certificates SET current_version_id = NULL",
@@ -30,6 +33,9 @@ import org.springframework.test.context.jdbc.SqlGroup;
 		executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD),
 	@Sql(
 		statements = {
+			"DELETE FROM certificate_status_history",
+			"DELETE FROM certificate_metadata_entries",
+			"DELETE FROM certificate_source_observations",
 			"DELETE FROM certificate_tags",
 			"DELETE FROM certificate_chain_entries",
 			"UPDATE certificates SET current_version_id = NULL",

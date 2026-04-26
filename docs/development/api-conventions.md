@@ -8,8 +8,13 @@ All public backend APIs live under `/api/v1`.
 - `GET /api/v1/bootstrap/status` - first-run bootstrap status.
 - `POST /api/v1/bootstrap/admin` - one-time bootstrap administrator creation.
 - `POST /api/v1/certificates/import` - import a public PEM leaf certificate and optional public PEM chain.
+- `POST /api/v1/certificates/source-observations` - record a public certificate observation from a source connector or discovery worker.
 - `GET /api/v1/certificates` - tenant-scoped certificate inventory list.
 - `GET /api/v1/certificates/{certificateId}` - certificate detail with versions, chain, and audit timeline.
+- `PUT /api/v1/certificates/{certificateId}/tags` - replace normalized inventory tags.
+- `PUT /api/v1/certificates/{certificateId}/metadata` - replace typed custom metadata.
+- `POST /api/v1/certificates/{certificateId}/status` - record a status transition with reason.
+- `GET /api/v1/certificates/{certificateId}/status-history` - read status transition history.
 - `GET /api/v1/tasks/{taskId}` - redacted async task status requiring `PERMISSION_TASK_READ`.
 - `GET /v3/api-docs` - generated OpenAPI JSON.
 - `GET /swagger-ui` - generated Swagger UI.
@@ -22,7 +27,11 @@ The API supports HTTP Basic for local users, bearer tokens for service accounts,
 
 Service account bearer tokens are tenant-scoped and permission-scoped. Raw token values are returned only at creation or rotation time.
 
-Certificate inventory endpoints use `PERMISSION_CERTIFICATE_READ` for list/detail and `PERMISSION_CERTIFICATE_IMPORT` for PEM import.
+Certificate inventory endpoints use:
+
+- `PERMISSION_CERTIFICATE_READ` for list, detail, and status-history reads.
+- `PERMISSION_CERTIFICATE_IMPORT` for PEM import and source observations.
+- `PERMISSION_CERTIFICATE_MANAGE` for tags, metadata, and status updates.
 
 ## Error Envelope
 
@@ -67,6 +76,7 @@ List APIs use shared query primitives:
 - `filter=subject:value`
 - `filter=san:value`
 - `filter=tag:value`
+- `filter=metadata.environment:prod`
 - `filter=expiresBefore:2026-12-31T00:00:00Z`
 - `filter=expiresAfter:2026-01-01T00:00:00Z`
 - `sort=createdAt,desc`

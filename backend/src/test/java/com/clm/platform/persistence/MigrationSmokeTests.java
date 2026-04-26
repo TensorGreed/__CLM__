@@ -29,10 +29,22 @@ class MigrationSmokeTests {
 		Integer certificateVersionTableCount = jdbcTemplate.queryForObject(
 			"select count(*) from information_schema.tables where table_name = 'certificate_versions'",
 			Integer.class);
+		Integer sourceObservationTableCount = jdbcTemplate.queryForObject(
+			"select count(*) from information_schema.tables where table_name = 'certificate_source_observations'",
+			Integer.class);
+		Integer metadataTableCount = jdbcTemplate.queryForObject(
+			"select count(*) from information_schema.tables where table_name = 'certificate_metadata_entries'",
+			Integer.class);
+		Integer statusHistoryTableCount = jdbcTemplate.queryForObject(
+			"select count(*) from information_schema.tables where table_name = 'certificate_status_history'",
+			Integer.class);
 
 		assertThat(auditTableCount).isEqualTo(1);
 		assertThat(taskTableCount).isEqualTo(1);
 		assertThat(certificateTableCount).isEqualTo(1);
 		assertThat(certificateVersionTableCount).isEqualTo(1);
+		assertThat(sourceObservationTableCount).isEqualTo(1);
+		assertThat(metadataTableCount).isEqualTo(1);
+		assertThat(statusHistoryTableCount).isEqualTo(1);
 	}
 }

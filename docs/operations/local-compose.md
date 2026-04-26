@@ -14,6 +14,8 @@ This starts:
 - Backend API on `http://localhost:8080`.
 - Frontend UI on `http://localhost:5173`.
 
+The UI service sets `VITE_DEV_PROXY_TARGET=http://api:8080` so Vite can proxy API calls across the Compose network.
+
 ## Start With Worker Profile
 
 ```bash

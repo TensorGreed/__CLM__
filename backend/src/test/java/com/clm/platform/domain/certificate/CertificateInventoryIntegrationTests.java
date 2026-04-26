@@ -3,6 +3,7 @@ package com.clm.platform.domain.certificate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Clock;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -14,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +44,10 @@ class CertificateInventoryIntegrationTests {
 
 	private static final String READ_ONLY_PASSWORD = "read-only-password";
 
+	private static final String OPERATOR_EMAIL = "cert-operator@example.test";
+
+	private static final String OPERATOR_PASSWORD = "operator-password";
+
 	@LocalServerPort
 	private int port;
 
@@ -55,6 +62,15 @@ class CertificateInventoryIntegrationTests {
 
 	@Autowired
 	private CertificateVersionRepository versionRepository;
+
+	@Autowired
+	private CertificateSourceObservationRepository sourceObservationRepository;
+
+	@Autowired
+	private CertificateMetadataEntryRepository metadataEntryRepository;
+
+	@Autowired
+	private CertificateStatusHistoryRepository statusHistoryRepository;
 
 	@Autowired
 	private UserAccountRepository userAccountRepository;
@@ -105,6 +121,7 @@ class CertificateInventoryIntegrationTests {
 		assertThat(detail.path("currentVersion").path("publicKeyAlgorithm").asText()).isEqualTo("RSA");
 		assertThat(detail.path("currentVersion").path("chainLength").asInt()).isEqualTo(2);
 		assertThat(detail.path("chain")).hasSize(1);
+		assertThat(detail.path("statusHistory")).hasSize(1);
 		assertThat(detail.path("auditTimeline")).isNotEmpty();
 	}
 
@@ -143,6 +160,56 @@ class CertificateInventoryIntegrationTests {
 	}
 
 	@Test
+	void sourceObservationsDeduplicateCertificateVersionsAcrossSources() throws Exception {
+		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
+
+		CertificateObservationResponse first = observeCertificate(
+			bootstrap.tenantId(),
+			CertificatePemFixtures.INVENTORY_CERTIFICATE,
+			"aws-acm",
+			"account-123456789012",
+			"arn:aws:acm:us-east-1:123456789012:certificate/web",
+			"AWS ACM production",
+			Map.of("region", "us-east-1"));
+		CertificateObservationResponse second = observeCertificate(
+			bootstrap.tenantId(),
+			CertificatePemFixtures.INVENTORY_CERTIFICATE,
+			"kubernetes",
+			"cluster-prod",
+			"namespace/default/secret/web-tls",
+			"Production Kubernetes",
+			Map.of("namespace", "default"));
+		CertificateObservationResponse repeated = observeCertificate(
+			bootstrap.tenantId(),
+			CertificatePemFixtures.INVENTORY_CERTIFICATE,
+			"aws-acm",
+			"account-123456789012",
+			"arn:aws:acm:us-east-1:123456789012:certificate/web",
+			"AWS ACM production",
+			Map.of("region", "us-east-1"));
+
+		assertThat(first.importedCertificate()).isTrue();
+		assertThat(first.createdObservation()).isTrue();
+		assertThat(second.importedCertificate()).isFalse();
+		assertThat(second.createdObservation()).isTrue();
+		assertThat(second.certificateId()).isEqualTo(first.certificateId());
+		assertThat(second.versionId()).isEqualTo(first.versionId());
+		assertThat(repeated.createdObservation()).isFalse();
+		assertThat(repeated.observationCount()).isEqualTo(2);
+		assertThat(certificateRepository.count()).isEqualTo(1);
+		assertThat(versionRepository.count()).isEqualTo(1);
+		assertThat(sourceObservationRepository.count()).isEqualTo(2);
+
+		ResponseEntity<String> detailResponse = TestBootstrap.adminClient(restTemplate)
+			.getForEntity(url("/api/v1/certificates/" + first.certificateId()), String.class);
+		assertThat(detailResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		JsonNode detail = objectMapper.readTree(detailResponse.getBody());
+		assertThat(detail.path("sourceObservations")).hasSize(2);
+		assertThat(detail.path("sourceObservations").toString()).contains("aws-acm", "kubernetes");
+		assertThat(detail.path("auditTimeline").toString()).contains("certificate.source_observed");
+	}
+
+	@Test
 	void listSupportsSearchFiltersAndSorting() throws Exception {
 		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
 		importCertificate(bootstrap.tenantId(), CertificatePemFixtures.INVENTORY_CERTIFICATE, null, "platform-team", false, Set.of("prod"));
@@ -165,6 +232,118 @@ class CertificateInventoryIntegrationTests {
 			.getForEntity(url("/api/v1/certificates?tenantId=" + bootstrap.tenantId() + "&filter=san:www.inventory"), String.class);
 		assertThat(sanResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(objectMapper.readTree(sanResponse.getBody()).path("totalElements").asInt()).isEqualTo(1);
+	}
+
+	@Test
+	void tagsAndTypedMetadataCanBeUpdatedSearchedAndAudited() throws Exception {
+		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
+		CertificateImportResponse imported = importCertificate(
+			bootstrap.tenantId(),
+			CertificatePemFixtures.INVENTORY_CERTIFICATE,
+			null,
+			"platform-team",
+			false,
+			Set.of("initial"));
+
+		ResponseEntity<CertificateTagsResponse> tagsResponse = TestBootstrap.adminClient(restTemplate)
+			.exchange(
+				url("/api/v1/certificates/" + imported.certificateId() + "/tags"),
+				HttpMethod.PUT,
+				new HttpEntity<>(new CertificateTagsUpdateRequest(Set.of("Prod", "Critical"))),
+				CertificateTagsResponse.class);
+		assertThat(tagsResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(tagsResponse.getBody()).isNotNull();
+		assertThat(tagsResponse.getBody().tags()).containsExactlyInAnyOrder("prod", "critical");
+
+		ResponseEntity<CertificateMetadataResponse> metadataResponse = TestBootstrap.adminClient(restTemplate)
+			.exchange(
+				url("/api/v1/certificates/" + imported.certificateId() + "/metadata"),
+				HttpMethod.PUT,
+				new HttpEntity<>(new CertificateMetadataUpdateRequest(Map.of(
+					"environment",
+					new CertificateMetadataValueRequest(CertificateMetadataValueType.STRING, "prod"),
+					"criticality",
+					new CertificateMetadataValueRequest(CertificateMetadataValueType.NUMBER, "1.0"),
+					"internet-facing",
+					new CertificateMetadataValueRequest(CertificateMetadataValueType.BOOLEAN, "TRUE"),
+					"reviewed-at",
+					new CertificateMetadataValueRequest(CertificateMetadataValueType.INSTANT, "2026-04-26T00:00:00Z")))),
+				CertificateMetadataResponse.class);
+		assertThat(metadataResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(metadataEntryRepository.count()).isEqualTo(4);
+
+		ResponseEntity<String> searchResponse = TestBootstrap.adminClient(restTemplate)
+			.getForEntity(url("/api/v1/certificates?tenantId=" + bootstrap.tenantId() + "&filter=metadata.environment:prod"), String.class);
+		assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(objectMapper.readTree(searchResponse.getBody()).path("totalElements").asInt()).isEqualTo(1);
+
+		ResponseEntity<String> detailResponse = TestBootstrap.adminClient(restTemplate)
+			.getForEntity(url("/api/v1/certificates/" + imported.certificateId()), String.class);
+		JsonNode detail = objectMapper.readTree(detailResponse.getBody());
+		assertThat(detail.path("tags").toString()).contains("prod", "critical");
+		assertThat(detail.path("metadata").path("criticality").path("value").asText()).isEqualTo("1");
+		assertThat(detail.path("metadata").path("internet-facing").path("value").asText()).isEqualTo("true");
+		assertThat(detail.path("auditTimeline").toString()).contains("certificate.tags_updated", "certificate.metadata_updated");
+
+		ResponseEntity<String> invalidMetadata = TestBootstrap.adminClient(restTemplate)
+			.exchange(
+				url("/api/v1/certificates/" + imported.certificateId() + "/metadata"),
+				HttpMethod.PUT,
+				new HttpEntity<>(new CertificateMetadataUpdateRequest(Map.of(
+					"secret-token",
+					new CertificateMetadataValueRequest(CertificateMetadataValueType.STRING, "should-not-store")))),
+				String.class);
+		assertThat(invalidMetadata.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(objectMapper.readTree(invalidMetadata.getBody()).path("code").asText()).isEqualTo("VALIDATION_FAILED");
+	}
+
+	@Test
+	void statusTransitionsAreRecordedQueryableAndAudited() throws Exception {
+		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
+		CertificateImportResponse imported = importCertificate(
+			bootstrap.tenantId(),
+			CertificatePemFixtures.INVENTORY_CERTIFICATE,
+			null,
+			"platform-team",
+			false,
+			Set.of());
+
+		ResponseEntity<String> initialHistory = TestBootstrap.adminClient(restTemplate)
+			.getForEntity(url("/api/v1/certificates/" + imported.certificateId() + "/status-history"), String.class);
+		assertThat(initialHistory.getStatusCode()).isEqualTo(HttpStatus.OK);
+		JsonNode initial = objectMapper.readTree(initialHistory.getBody());
+		assertThat(initial).hasSize(1);
+		assertThat(initial.get(0).path("fromStatus").isNull()).isTrue();
+		assertThat(initial.get(0).path("toStatus").asText()).isEqualTo("ACTIVE");
+
+		ResponseEntity<CertificateStatusUpdateResponse> statusResponse = TestBootstrap.adminClient(restTemplate)
+			.postForEntity(
+				url("/api/v1/certificates/" + imported.certificateId() + "/status"),
+				new CertificateStatusUpdateRequest(CertificateStatus.REVOKED, "Revoked by external CA evidence."),
+				CertificateStatusUpdateResponse.class);
+		assertThat(statusResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(statusResponse.getBody()).isNotNull();
+		assertThat(statusResponse.getBody().changed()).isTrue();
+		assertThat(statusResponse.getBody().status()).isEqualTo(CertificateStatus.REVOKED);
+
+		ResponseEntity<CertificateStatusUpdateResponse> repeatedStatus = TestBootstrap.adminClient(restTemplate)
+			.postForEntity(
+				url("/api/v1/certificates/" + imported.certificateId() + "/status"),
+				new CertificateStatusUpdateRequest(CertificateStatus.REVOKED, "Already revoked."),
+				CertificateStatusUpdateResponse.class);
+		assertThat(repeatedStatus.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(repeatedStatus.getBody()).isNotNull();
+		assertThat(repeatedStatus.getBody().changed()).isFalse();
+		assertThat(statusHistoryRepository.count()).isEqualTo(2);
+
+		ResponseEntity<String> detailResponse = TestBootstrap.adminClient(restTemplate)
+			.getForEntity(url("/api/v1/certificates/" + imported.certificateId()), String.class);
+		JsonNode detail = objectMapper.readTree(detailResponse.getBody());
+		assertThat(detail.path("status").asText()).isEqualTo("REVOKED");
+		assertThat(detail.path("statusHistory")).hasSize(2);
+		assertThat(detail.path("statusHistory").get(0).path("fromStatus").asText()).isEqualTo("ACTIVE");
+		assertThat(detail.path("statusHistory").get(0).path("toStatus").asText()).isEqualTo("REVOKED");
+		assertThat(detail.path("auditTimeline").toString()).contains("certificate.status_changed");
 	}
 
 	@Test
@@ -204,6 +383,46 @@ class CertificateInventoryIntegrationTests {
 			new CertificateImportRequest(bootstrap.tenantId(), CertificatePemFixtures.EXPIRED_CERTIFICATE, null, null, true, Set.of()),
 			String.class);
 		assertThat(forbiddenImport.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void managementApisEnforceRbacAndTenantIsolation() {
+		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
+		CertificateImportResponse defaultTenantCertificate = importCertificate(
+			bootstrap.tenantId(),
+			CertificatePemFixtures.INVENTORY_CERTIFICATE,
+			null,
+			"platform-team",
+			false,
+			Set.of());
+		UUID secondTenantId = createTenant("management-second", "Management Second Tenant");
+		CertificateImportResponse secondTenantCertificate = importCertificate(
+			secondTenantId,
+			CertificatePemFixtures.EXPIRED_CERTIFICATE,
+			null,
+			null,
+			true,
+			Set.of());
+		createReadOnlyUser(bootstrap.tenantId());
+		createRoleUser(OPERATOR_EMAIL, OPERATOR_PASSWORD, bootstrap.tenantId(), BuiltInRole.OPERATOR);
+
+		TestRestTemplate readOnlyClient = restTemplate.withBasicAuth(READ_ONLY_EMAIL, READ_ONLY_PASSWORD);
+		ResponseEntity<String> forbiddenTags = readOnlyClient.exchange(
+			url("/api/v1/certificates/" + defaultTenantCertificate.certificateId() + "/tags"),
+			HttpMethod.PUT,
+			new HttpEntity<>(new CertificateTagsUpdateRequest(Set.of("prod"))),
+			String.class);
+		assertThat(forbiddenTags.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+		TestRestTemplate operatorClient = restTemplate.withBasicAuth(OPERATOR_EMAIL, OPERATOR_PASSWORD);
+		ResponseEntity<String> hiddenCrossTenantUpdate = operatorClient.exchange(
+			url("/api/v1/certificates/" + secondTenantCertificate.certificateId() + "/metadata"),
+			HttpMethod.PUT,
+			new HttpEntity<>(new CertificateMetadataUpdateRequest(Map.of(
+				"environment",
+				new CertificateMetadataValueRequest(CertificateMetadataValueType.STRING, "prod")))),
+			String.class);
+		assertThat(hiddenCrossTenantUpdate.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 	}
 
 	@Test
@@ -251,6 +470,36 @@ class CertificateInventoryIntegrationTests {
 		return response.getBody();
 	}
 
+	private CertificateObservationResponse observeCertificate(
+			UUID tenantId,
+			String certificatePem,
+			String sourceType,
+			String sourceKey,
+			String observedResourceKey,
+			String sourceName,
+			Map<String, String> sourceMetadata) {
+		ResponseEntity<CertificateObservationResponse> response = TestBootstrap.adminClient(restTemplate)
+			.postForEntity(
+				url("/api/v1/certificates/source-observations"),
+				new CertificateObservationRequest(
+					tenantId,
+					certificatePem,
+					null,
+					sourceType,
+					sourceKey,
+					observedResourceKey,
+					sourceName,
+					"platform-team",
+					false,
+					Set.of("discovered"),
+					sourceMetadata),
+				CertificateObservationResponse.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(response.getBody()).isNotNull();
+		return response.getBody();
+	}
+
 	private UUID createTenant(String slug, String name) {
 		ResponseEntity<TenantResponse> response = TestBootstrap.adminClient(restTemplate)
 			.postForEntity(url("/api/v1/tenants"), new TenantCreateRequest(slug, name), TenantResponse.class);
@@ -261,18 +510,22 @@ class CertificateInventoryIntegrationTests {
 	}
 
 	private void createReadOnlyUser(UUID tenantId) {
-		UserAccount readOnlyUser = userAccountRepository.save(new UserAccount(
+		createRoleUser(READ_ONLY_EMAIL, READ_ONLY_PASSWORD, tenantId, BuiltInRole.READ_ONLY);
+	}
+
+	private void createRoleUser(String email, String password, UUID tenantId, BuiltInRole role) {
+		UserAccount user = userAccountRepository.save(new UserAccount(
 			UUID.randomUUID(),
-			READ_ONLY_EMAIL,
-			"Certificate Reader",
-			passwordEncoder.encode(READ_ONLY_PASSWORD),
+			email,
+			email,
+			passwordEncoder.encode(password),
 			clock.instant()));
 		roleAssignmentRepository.save(new UserRoleAssignment(
 			UUID.randomUUID(),
-			readOnlyUser.id(),
+			user.id(),
 			tenantId,
 			null,
-			BuiltInRole.READ_ONLY,
+			role,
 			clock.instant()));
 	}
 
