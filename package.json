@@ -1,0 +1,14 @@
+{
+  "name": "clm-platform-tooling",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "docs:lint": "markdownlint-cli2 \"*.md\" \"docs/**/*.md\"",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:test": "npm --prefix frontend test",
+    "frontend:lint": "npm --prefix frontend run lint"
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.22.1"
+  }
+}

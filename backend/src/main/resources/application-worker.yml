@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: clm-backend-worker
+
+server:
+  port: ${PORT:8081}
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:${server.port}}
+
+clm:
+  worker:
+    enabled: true

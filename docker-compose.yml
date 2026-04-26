@@ -1,0 +1,66 @@
+name: clm-platform
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${CLM_DATABASE_NAME:-clm}
+      POSTGRES_USER: ${CLM_DATABASE_USERNAME:-clm}
+      POSTGRES_PASSWORD: ${CLM_DATABASE_PASSWORD:-clm_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${CLM_DATABASE_USERNAME:-clm} -d ${CLM_DATABASE_NAME:-clm}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: clm-backend:local
+    build:
+      context: ./backend
+    environment:
+      CLM_DATABASE_URL: jdbc:postgresql://postgres:5432/${CLM_DATABASE_NAME:-clm}
+      CLM_DATABASE_USERNAME: ${CLM_DATABASE_USERNAME:-clm}
+      CLM_DATABASE_PASSWORD: ${CLM_DATABASE_PASSWORD:-clm_dev_password}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ui:
+    image: node:22-bookworm-slim
+    working_dir: /workspace/frontend
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/workspace/frontend
+      - frontend_node_modules:/workspace/frontend/node_modules
+    depends_on:
+      - api
+
+  worker:
+    image: clm-backend:local
+    profiles:
+      - worker
+    environment:
+      SPRING_PROFILES_ACTIVE: worker
+      PORT: 8081
+      CLM_DATABASE_URL: jdbc:postgresql://postgres:5432/${CLM_DATABASE_NAME:-clm}
+      CLM_DATABASE_USERNAME: ${CLM_DATABASE_USERNAME:-clm}
+      CLM_DATABASE_PASSWORD: ${CLM_DATABASE_PASSWORD:-clm_dev_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  frontend_node_modules:
+  postgres_data:
