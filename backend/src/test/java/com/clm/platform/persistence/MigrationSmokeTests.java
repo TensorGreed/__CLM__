@@ -23,8 +23,16 @@ class MigrationSmokeTests {
 		Integer taskTableCount = jdbcTemplate.queryForObject(
 			"select count(*) from information_schema.tables where table_name = 'task_runs'",
 			Integer.class);
+		Integer certificateTableCount = jdbcTemplate.queryForObject(
+			"select count(*) from information_schema.tables where table_name = 'certificates'",
+			Integer.class);
+		Integer certificateVersionTableCount = jdbcTemplate.queryForObject(
+			"select count(*) from information_schema.tables where table_name = 'certificate_versions'",
+			Integer.class);
 
 		assertThat(auditTableCount).isEqualTo(1);
 		assertThat(taskTableCount).isEqualTo(1);
+		assertThat(certificateTableCount).isEqualTo(1);
+		assertThat(certificateVersionTableCount).isEqualTo(1);
 	}
 }

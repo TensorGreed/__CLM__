@@ -64,3 +64,6 @@ The default database values match `docker-compose.yml`.
 - Built-in roles and permission authorities.
 - Service account and API token authentication.
 - Sensitive-action reason capture with audit events.
+- Certificate inventory import, search, and detail APIs.
+- Public PEM certificate parsing with private-key rejection.
+- Certificate version fingerprint deduplication.

@@ -34,6 +34,13 @@ curl -H "Authorization: Bearer clm_..." http://localhost:8080/api/v1/tenants
 
 The token scope is converted into `PERMISSION_*` authorities. Service account principals are still tenant-scoped to the service account tenant.
 
+Useful inventory scopes:
+
+- `CERTIFICATE_READ` for certificate list/detail automation.
+- `CERTIFICATE_IMPORT` for PEM certificate import automation.
+
+Use the smallest scope set needed by each integration.
+
 ## Rotation And Revocation
 
 Rotating a token replaces the stored hash and invalidates the old secret. Revoking a token changes its status to `REVOKED`; revoked and expired tokens cannot authenticate.

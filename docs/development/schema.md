@@ -9,7 +9,7 @@ Flyway manages database schema changes.
 - `audit_events`
 - `task_runs`
 
-The migration is intentionally limited to platform foundation tables. Certificate inventory schema starts in R1-E04.
+The migration is intentionally limited to platform foundation tables.
 
 ## Identity Migration
 
@@ -23,6 +23,19 @@ The migration is intentionally limited to platform foundation tables. Certificat
 - `api_tokens`
 
 The migration includes indexes for tenant joins, role lookups, service account lookups, and token lookup metadata.
+
+## Certificate Inventory Migration
+
+`V3__certificate_inventory.sql` creates:
+
+- `certificates`
+- `certificate_versions`
+- `certificate_chain_entries`
+- `certificate_tags`
+
+`certificates` is the tenant-scoped system-of-record row. `certificate_versions` is append-oriented and deduplicated by tenant plus SHA-256 fingerprint. `certificate_chain_entries` stores parsed public chain metadata for imported versions. `certificate_tags` stores normalized inventory tags for filtering.
+
+The migration adds indexes for tenant/status, owner, issuer, expiry, current version lookup, version history lookup, chain lookup, and tag lookup. The schema intentionally does not store private key material in R1-E04.
 
 ## Test Profile
 

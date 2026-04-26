@@ -34,6 +34,13 @@ class QuerySpecTests {
 	}
 
 	@Test
+	void sortSpecParsesSpringSplitFieldAndDirection() {
+		List<SortSpec> sorts = SortSpec.parse(List.of("createdAt", "desc"));
+
+		assertThat(sorts).containsExactly(new SortSpec("createdAt", SortDirection.DESC));
+	}
+
+	@Test
 	void filterSpecParsesFieldValuePairs() {
 		List<FilterSpec> filters = FilterSpec.parse(List.of("status:queued"));
 

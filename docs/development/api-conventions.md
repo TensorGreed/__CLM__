@@ -7,17 +7,22 @@ All public backend APIs live under `/api/v1`.
 - `GET /api/v1` - API root and links.
 - `GET /api/v1/bootstrap/status` - first-run bootstrap status.
 - `POST /api/v1/bootstrap/admin` - one-time bootstrap administrator creation.
+- `POST /api/v1/certificates/import` - import a public PEM leaf certificate and optional public PEM chain.
+- `GET /api/v1/certificates` - tenant-scoped certificate inventory list.
+- `GET /api/v1/certificates/{certificateId}` - certificate detail with versions, chain, and audit timeline.
 - `GET /api/v1/tasks/{taskId}` - redacted async task status requiring `PERMISSION_TASK_READ`.
 - `GET /v3/api-docs` - generated OpenAPI JSON.
 - `GET /swagger-ui` - generated Swagger UI.
 
-No certificate lifecycle business endpoints exist yet.
+Certificate inventory APIs do not accept private keys in R1-E04. Key import, issuance, renewal, destinations, plugins, and MCP are later epics.
 
 ## Authentication
 
 The API supports HTTP Basic for local users, bearer tokens for service accounts, and optional OIDC login. Protected endpoints return `UNAUTHENTICATED` when credentials are missing or invalid, and `FORBIDDEN` when the actor lacks the required permission.
 
 Service account bearer tokens are tenant-scoped and permission-scoped. Raw token values are returned only at creation or rotation time.
+
+Certificate inventory endpoints use `PERMISSION_CERTIFICATE_READ` for list/detail and `PERMISSION_CERTIFICATE_IMPORT` for PEM import.
 
 ## Error Envelope
 
@@ -45,7 +50,7 @@ If the header is missing or invalid, the API generates a UUID. The resolved valu
 
 ## Query Primitives
 
-R1-E02 adds shared primitives for future list APIs:
+List APIs use shared query primitives:
 
 - Page numbers are zero-based.
 - Default page size is `25`.
@@ -53,7 +58,26 @@ R1-E02 adds shared primitives for future list APIs:
 - Sort syntax is `field,asc` or `field,desc`.
 - Filter syntax is `field:value`.
 
-These primitives are not attached to certificate inventory yet.
+`GET /api/v1/certificates` supports:
+
+- `tenantId`: optional tenant filter; non-global actors are still restricted to assigned tenants.
+- `filter=owner:value`
+- `filter=status:ACTIVE|EXPIRED|REVOKED`
+- `filter=issuer:value`
+- `filter=subject:value`
+- `filter=san:value`
+- `filter=tag:value`
+- `filter=expiresBefore:2026-12-31T00:00:00Z`
+- `filter=expiresAfter:2026-01-01T00:00:00Z`
+- `sort=createdAt,desc`
+- `sort=updatedAt,desc`
+- `sort=expiresAt,asc`
+- `sort=subject,asc`
+- `sort=issuer,asc`
+- `sort=owner,asc`
+- `sort=status,asc`
+
+Responses use the shared page envelope with `content`, page metadata, and total counts.
 
 ## OpenAPI
 

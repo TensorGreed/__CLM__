@@ -28,6 +28,7 @@ public class PlatformController {
 			List.of(
 				new LinkResponse("self", ApiPaths.API_V1),
 				new LinkResponse("openapi", "/v3/api-docs"),
+				new LinkResponse("certificates", ApiPaths.API_V1 + "/certificates"),
 				new LinkResponse("tasks", ApiPaths.API_V1 + "/tasks/{taskId}")));
 	}
 }

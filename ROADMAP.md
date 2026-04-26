@@ -46,7 +46,7 @@ Last updated: 2026-04-26.
 | R1-E01: Repository And Build Foundation | Done | Spring Boot backend skeleton, React TypeScript frontend shell, local Compose stack, baseline CI, dependency automation, docs tooling, and developer/operator docs. | Backend tests, frontend lint/tests/build, docs lint, and Compose config validation passed. | `docker compose up` could not be runtime-verified until Docker Desktop Linux engine is running locally. |
 | R1-E02: Backend Platform Core | Done | `/api/v1` foundation, OpenAPI generation, stable error envelope, query primitives, Flyway baseline migration, JSON logs with correlation IDs, audit event model/service, async task model/runner, and task detail API. | Backend tests, docs lint, Compose config, Compose startup, API health, API root, OpenAPI JSON, and UI probes passed. | No certificate business endpoints, auth/RBAC, plugins, or MCP were added. |
 | R1-E03: Identity, Tenancy, And RBAC | Done | First-run bootstrap admin, local Basic auth, optional OIDC login with group-role mapping, tenant/org APIs with scope checks, built-in roles/permissions, sensitive-action reason capture, service accounts, and scoped API tokens. | Backend tests, docs lint, Compose config, Compose rebuild/startup, API health, API root, bootstrap status, OpenAPI JSON, protected API 401, and UI probe passed. | No certificate inventory, user-management UI, SCIM, SAML, ABAC, plugins, or MCP were added. |
-| R1-E04: Certificate Inventory Core | Next | PEM certificate import, certificate/version records, inventory search, detail APIs, deduplication, tags/metadata, and status history. | Pending. | Recommended next implementation slice. |
+| R1-E04: Certificate Inventory Core | In Progress | Backend API slice for R1-E04-S01, R1-E04-S02, and the backend portion of R1-E04-S03: PEM-only certificate import, certificate/version records, parsed metadata, fingerprint deduplication, tenant-scoped search, detail API, RBAC, and import audit events. | Backend tests, migration tests, docs lint, Compose config, Compose rebuild/startup, API health, API root, OpenAPI JSON, protected certificate API 401, and UI probe passed. | Frontend inventory screens, source observation deduplication, editable custom metadata, full status history, private keys, issuance, renewal, destinations, plugins, and MCP remain out of scope. |
 
 ## Epic R0-E01: Product And Architecture Foundation
 
@@ -368,14 +368,12 @@ These stories should be pulled into every relevant epic, not implemented as afte
 | CC-S07 | As a compliance owner, I want tenant isolation verified so data cannot leak. | Tenant-scoped resources have negative authorization tests. | Security tests. | Security docs. | Any tenant story |
 | CC-S08 | As a user, I want accessibility support so core workflows are usable by keyboard and screen reader. | New UI flows meet accessibility baseline. | Accessibility tests where feasible. | UI guidelines. | Any UI story |
 
-## Suggested First Coding Slice
+## Suggested Next Coding Slice
 
-When implementation begins, start with this sequence:
+Continue with this sequence:
 
-1. R1-E01-S01 through R1-E01-S05 for repo, build, and CI.
-2. R1-E02-S01 through R1-E02-S05 for backend platform core.
-3. R1-E03-S01 through R1-E03-S06 for bootstrap auth, RBAC, and service accounts.
-4. R1-E04-S01 through R1-E04-S03 for import, search, and details.
-5. R1-E05-S01 through R1-E05-S03 for the first usable UI.
+1. Finish the remaining backend parts of R1-E04-S04 through R1-E04-S06 for source observations, editable metadata/tags, and status history.
+2. Implement R1-E05-S01 through R1-E05-S03 for the role-aware shell, inventory table, and certificate detail pages.
+3. Move to R2-E01 only after the inventory UI and audit/status model are stable, because private key handling has a much higher security bar.
 
-This creates a secure, testable vertical slice before adding automation.
+This keeps the certificate system of record coherent before adding key handling, issuance, destinations, and automation.

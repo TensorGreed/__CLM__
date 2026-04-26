@@ -4,7 +4,7 @@ This repository is being shaped into an enterprise certificate lifecycle managem
 
 ## Implementation Status
 
-R1-E01 through R1-E03 are now implemented as the initial repository, backend platform, and identity foundation:
+R1-E01 through R1-E03 are implemented as the initial repository, backend platform, and identity foundation. R1-E04 is in progress with the backend certificate inventory core now available:
 
 - Spring Boot backend skeleton in [backend](backend).
 - React TypeScript frontend shell in [frontend](frontend).
@@ -13,8 +13,9 @@ R1-E01 through R1-E03 are now implemented as the initial repository, backend pla
 - Developer and operator setup docs in [docs](docs).
 - `/api/v1` backend foundation with OpenAPI, stable error envelopes, correlation IDs, audit events, and async task runs.
 - First-run bootstrap admin flow, local Basic auth, optional OIDC login, tenant and organization APIs, built-in RBAC, sensitive-action reason capture, and service account API tokens.
+- Certificate inventory backend APIs for PEM-only certificate import, parsed certificate/version metadata, fingerprint deduplication, tenant-scoped search, detail retrieval, and import audit events.
 
-No certificate lifecycle business features have been added yet.
+Certificate inventory frontend screens, certificate private key handling, issuance, renewal, destinations, plugins, and MCP are not implemented yet.
 
 Start with these root planning files:
 
@@ -39,6 +40,7 @@ Open:
 - Backend health: `http://localhost:8080/actuator/health`
 - Backend API root: `http://localhost:8080/api/v1`
 - Bootstrap status: `http://localhost:8080/api/v1/bootstrap/status`
+- Certificate inventory API: `http://localhost:8080/api/v1/certificates`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - Swagger UI: `http://localhost:8080/swagger-ui`
 - PostgreSQL: `localhost:5432`
@@ -83,6 +85,7 @@ npm run docs:lint
 - [API conventions](docs/development/api-conventions.md)
 - [Identity, tenancy, and RBAC](docs/development/identity-rbac.md)
 - [Service accounts and API tokens](docs/development/service-accounts.md)
+- [Certificate inventory](docs/development/certificate-inventory.md)
 - [Schema and migrations](docs/development/schema.md)
 - [Audit foundation](docs/development/audit.md)
 - [Worker foundation](docs/development/workers.md)

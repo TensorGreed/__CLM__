@@ -10,14 +10,22 @@ public enum BuiltInRole {
 		Permission.TENANT_READ,
 		Permission.ORGANIZATION_READ,
 		Permission.ROLE_READ,
+		Permission.CERTIFICATE_READ,
+		Permission.CERTIFICATE_IMPORT,
+		Permission.CERTIFICATE_MANAGE,
 		Permission.TASK_READ,
 		Permission.TASK_MANAGE,
 		Permission.SENSITIVE_ACTION_EXECUTE)),
-	REQUESTER(EnumSet.of(Permission.TENANT_READ, Permission.ORGANIZATION_READ, Permission.TASK_READ)),
+	REQUESTER(EnumSet.of(
+		Permission.TENANT_READ,
+		Permission.ORGANIZATION_READ,
+		Permission.CERTIFICATE_READ,
+		Permission.TASK_READ)),
 	APPROVER(EnumSet.of(
 		Permission.TENANT_READ,
 		Permission.ORGANIZATION_READ,
 		Permission.ROLE_READ,
+		Permission.CERTIFICATE_READ,
 		Permission.TASK_READ,
 		Permission.AUDIT_READ,
 		Permission.SENSITIVE_ACTION_EXECUTE)),
@@ -25,14 +33,20 @@ public enum BuiltInRole {
 		Permission.TENANT_READ,
 		Permission.ORGANIZATION_READ,
 		Permission.ROLE_READ,
+		Permission.CERTIFICATE_READ,
 		Permission.TASK_READ,
 		Permission.AUDIT_READ)),
 	READ_ONLY(EnumSet.of(
 		Permission.TENANT_READ,
 		Permission.ORGANIZATION_READ,
 		Permission.ROLE_READ,
+		Permission.CERTIFICATE_READ,
 		Permission.TASK_READ)),
-	SERVICE_ACCOUNT(EnumSet.of(Permission.TENANT_READ, Permission.ORGANIZATION_READ, Permission.TASK_READ));
+	SERVICE_ACCOUNT(EnumSet.of(
+		Permission.TENANT_READ,
+		Permission.ORGANIZATION_READ,
+		Permission.CERTIFICATE_READ,
+		Permission.TASK_READ));
 
 	private final Set<Permission> permissions;
 
