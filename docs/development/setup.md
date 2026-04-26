@@ -49,6 +49,24 @@ Open the UI at `http://localhost:5173`.
 
 Backend health is available at `http://localhost:8080/actuator/health`.
 
+## First-Run Bootstrap
+
+Check whether the deployment needs an initial administrator:
+
+```bash
+curl http://localhost:8080/api/v1/bootstrap/status
+```
+
+Create the initial local administrator once:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/bootstrap/admin \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.test","displayName":"Admin","password":"change-this-password","tenantSlug":"default","tenantName":"Default Tenant","organizationSlug":"platform","organizationName":"Platform Operations"}'
+```
+
+After bootstrap, protected local APIs can be called with HTTP Basic or scoped service account bearer tokens.
+
 ## Validation Commands
 
 ```bash

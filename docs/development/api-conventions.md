@@ -5,11 +5,19 @@ All public backend APIs live under `/api/v1`.
 ## Foundation Endpoints
 
 - `GET /api/v1` - API root and links.
-- `GET /api/v1/tasks/{taskId}` - redacted async task status.
+- `GET /api/v1/bootstrap/status` - first-run bootstrap status.
+- `POST /api/v1/bootstrap/admin` - one-time bootstrap administrator creation.
+- `GET /api/v1/tasks/{taskId}` - redacted async task status requiring `PERMISSION_TASK_READ`.
 - `GET /v3/api-docs` - generated OpenAPI JSON.
 - `GET /swagger-ui` - generated Swagger UI.
 
 No certificate lifecycle business endpoints exist yet.
+
+## Authentication
+
+The API supports HTTP Basic for local users, bearer tokens for service accounts, and optional OIDC login. Protected endpoints return `UNAUTHENTICATED` when credentials are missing or invalid, and `FORBIDDEN` when the actor lacks the required permission.
+
+Service account bearer tokens are tenant-scoped and permission-scoped. Raw token values are returned only at creation or rotation time.
 
 ## Error Envelope
 

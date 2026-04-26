@@ -2,6 +2,8 @@ package com.clm.platform.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +25,9 @@ class SecurityConfigurationTests {
 	@Autowired
 	private TestRestTemplate restTemplate;
 
+	@Autowired
+	private ObjectMapper objectMapper;
+
 	@Test
 	void healthEndpointIsPublic() {
 		ResponseEntity<String> response = restTemplate.getForEntity(url("/actuator/health"), String.class);
@@ -32,10 +37,11 @@ class SecurityConfigurationTests {
 	}
 
 	@Test
-	void nonFoundationEndpointsAreClosedUntilAuthIsImplemented() {
+	void protectedEndpointsRequireAuthentication() throws Exception {
 		ResponseEntity<String> response = restTemplate.getForEntity(url("/api/v1/admin"), String.class);
 
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(objectMapper.readTree(response.getBody()).path("code").asText()).isEqualTo("UNAUTHENTICATED");
 	}
 
 	private String url(String path) {

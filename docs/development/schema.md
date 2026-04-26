@@ -11,6 +11,19 @@ Flyway manages database schema changes.
 
 The migration is intentionally limited to platform foundation tables. Certificate inventory schema starts in R1-E04.
 
+## Identity Migration
+
+`V2__identity_tenancy_rbac.sql` creates:
+
+- `tenants`
+- `organizations`
+- `user_accounts`
+- `user_role_assignments`
+- `service_accounts`
+- `api_tokens`
+
+The migration includes indexes for tenant joins, role lookups, service account lookups, and token lookup metadata.
+
 ## Test Profile
 
 The `test` profile runs Flyway against H2 in PostgreSQL compatibility mode and validates JPA mappings with `ddl-auto: validate`.

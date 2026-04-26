@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -66,6 +68,16 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
 	ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException exception, HttpServletRequest request) {
 		return error(ApiErrorCode.METHOD_NOT_ALLOWED, "HTTP method is not supported for this resource.", request, List.of());
+	}
+
+	@ExceptionHandler(AuthenticationException.class)
+	ResponseEntity<ApiErrorResponse> handleAuthentication(AuthenticationException exception, HttpServletRequest request) {
+		return error(ApiErrorCode.UNAUTHENTICATED, "Authentication is required.", request, List.of());
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
+		return error(ApiErrorCode.FORBIDDEN, "Access is denied.", request, List.of());
 	}
 
 	@ExceptionHandler(Exception.class)

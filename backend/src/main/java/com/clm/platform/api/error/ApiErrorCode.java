@@ -16,6 +16,18 @@ public enum ApiErrorCode {
 		"RESOURCE_NOT_FOUND",
 		HttpStatus.NOT_FOUND,
 		"Verify the resource identifier and tenant scope."),
+	CONFLICT(
+		"CONFLICT",
+		HttpStatus.CONFLICT,
+		"Refresh the resource state and retry if the operation is still valid."),
+	UNAUTHENTICATED(
+		"UNAUTHENTICATED",
+		HttpStatus.UNAUTHORIZED,
+		"Authenticate and retry the request."),
+	FORBIDDEN(
+		"FORBIDDEN",
+		HttpStatus.FORBIDDEN,
+		"Use an account with the required permission or request access."),
 	METHOD_NOT_ALLOWED(
 		"METHOD_NOT_ALLOWED",
 		HttpStatus.METHOD_NOT_ALLOWED,

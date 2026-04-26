@@ -22,7 +22,9 @@ R1-E02 adds the immutable audit event foundation.
 
 The service can append audit events and redacts sensitive values from reason and metadata fields.
 
-Identity, tenant enforcement, RBAC decisions, and full sensitive-action coverage start in R1-E03 and later lifecycle epics.
+R1-E03 adds audit coverage for first-run bootstrap admin creation and the sensitive-action reason capture API.
+
+Full certificate lifecycle audit coverage starts when certificate inventory, issuance, renewal, deployment, approval, and key handling workflows are implemented.
 
 ## Redaction
 

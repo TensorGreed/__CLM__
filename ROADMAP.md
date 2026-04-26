@@ -45,7 +45,8 @@ Last updated: 2026-04-26.
 | R0-E01: Product And Architecture Foundation | Done | Product feature catalog, roadmap, AI-agent guidance, Claude guidance, skill cards, and docsite strategy. | Documentation review and markdown lint. | Planning artifacts are intentionally root-level and agent-readable. |
 | R1-E01: Repository And Build Foundation | Done | Spring Boot backend skeleton, React TypeScript frontend shell, local Compose stack, baseline CI, dependency automation, docs tooling, and developer/operator docs. | Backend tests, frontend lint/tests/build, docs lint, and Compose config validation passed. | `docker compose up` could not be runtime-verified until Docker Desktop Linux engine is running locally. |
 | R1-E02: Backend Platform Core | Done | `/api/v1` foundation, OpenAPI generation, stable error envelope, query primitives, Flyway baseline migration, JSON logs with correlation IDs, audit event model/service, async task model/runner, and task detail API. | Backend tests, docs lint, Compose config, Compose startup, API health, API root, OpenAPI JSON, and UI probes passed. | No certificate business endpoints, auth/RBAC, plugins, or MCP were added. |
-| R1-E03: Identity, Tenancy, And RBAC | Next | Bootstrap admin, OIDC login, tenant/org scope, roles/permissions, reason capture, and service accounts. | Pending. | Recommended next implementation slice. |
+| R1-E03: Identity, Tenancy, And RBAC | Done | First-run bootstrap admin, local Basic auth, optional OIDC login with group-role mapping, tenant/org APIs with scope checks, built-in roles/permissions, sensitive-action reason capture, service accounts, and scoped API tokens. | Backend tests, docs lint, Compose config, Compose rebuild/startup, API health, API root, bootstrap status, OpenAPI JSON, protected API 401, and UI probe passed. | No certificate inventory, user-management UI, SCIM, SAML, ABAC, plugins, or MCP were added. |
+| R1-E04: Certificate Inventory Core | Next | PEM certificate import, certificate/version records, inventory search, detail APIs, deduplication, tags/metadata, and status history. | Pending. | Recommended next implementation slice. |
 
 ## Epic R0-E01: Product And Architecture Foundation
 
@@ -373,7 +374,7 @@ When implementation begins, start with this sequence:
 
 1. R1-E01-S01 through R1-E01-S05 for repo, build, and CI.
 2. R1-E02-S01 through R1-E02-S05 for backend platform core.
-3. R1-E03-S01 through R1-E03-S04 for bootstrap auth and RBAC.
+3. R1-E03-S01 through R1-E03-S06 for bootstrap auth, RBAC, and service accounts.
 4. R1-E04-S01 through R1-E04-S03 for import, search, and details.
 5. R1-E05-S01 through R1-E05-S03 for the first usable UI.
 

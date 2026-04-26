@@ -18,10 +18,14 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 
+import com.clm.platform.testsupport.CleanDatabase;
+import com.clm.platform.testsupport.TestBootstrap;
+
 @SpringBootTest(
 	webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 	properties = { "debug=false", "logging.level.root=INFO", "logging.level.org.springframework=INFO" })
 @ActiveProfiles("test")
+@CleanDatabase
 class PlatformApiTests {
 
 	@LocalServerPort
@@ -53,9 +57,11 @@ class PlatformApiTests {
 
 	@Test
 	void errorEnvelopeIncludesStableCodeAndCorrelationId() throws Exception {
+		TestBootstrap.createAdmin(restTemplate, url(""));
 		String correlationId = "test-correlation-1";
 		RequestEntity<Void> request = RequestEntity.get(url("/api/v1/tasks/" + UUID.randomUUID()))
 			.header("X-Correlation-ID", correlationId)
+			.header(HttpHeaders.AUTHORIZATION, basicAuthHeader())
 			.build();
 
 		ResponseEntity<String> response = restTemplate.exchange(request, String.class);
@@ -79,5 +85,10 @@ class PlatformApiTests {
 
 	private String url(String path) {
 		return "http://localhost:" + port + path;
+	}
+
+	private String basicAuthHeader() {
+		String credentials = TestBootstrap.ADMIN_EMAIL + ":" + TestBootstrap.ADMIN_PASSWORD;
+		return "Basic " + java.util.Base64.getEncoder().encodeToString(credentials.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 	}
 }
