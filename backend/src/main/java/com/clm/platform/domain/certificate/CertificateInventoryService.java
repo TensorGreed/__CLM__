@@ -157,6 +157,23 @@ public class CertificateInventoryService {
 	}
 
 	@Transactional(readOnly = true)
+	public List<CertificateSummaryResponse> search(String query, UUID tenantId, int limit) {
+		String normalizedQuery = query == null ? "" : query.trim();
+		if (normalizedQuery.isEmpty()) {
+			return List.of();
+		}
+		PageRequest pageRequest = PageRequest.of(
+			0,
+			Math.max(1, Math.min(limit, 25)),
+			Sort.by(Sort.Direction.ASC, "notAfter"));
+
+		return certificateRepository.findAll(globalSearchSpecification(normalizedQuery, tenantId), pageRequest)
+			.stream()
+			.map(CertificateSummaryResponse::from)
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
 	public CertificateDetailResponse get(UUID certificateId) {
 		ManagedCertificate certificate = certificateRepository.findById(certificateId)
 			.filter(this::canAccess)
@@ -404,6 +421,33 @@ public class CertificateInventoryService {
 					}
 				}
 			}
+			return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+		};
+	}
+
+	private Specification<ManagedCertificate> globalSearchSpecification(String searchTerm, UUID tenantId) {
+		return (root, query, criteriaBuilder) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			if (tenantId != null) {
+				tenancyService.getTenant(tenantId);
+				predicates.add(criteriaBuilder.equal(root.get("tenantId"), tenantId));
+			}
+			else if (!CurrentActor.hasGlobalAccess()) {
+				Set<UUID> tenantIds = CurrentActor.tenantIds();
+				if (tenantIds.isEmpty()) {
+					return criteriaBuilder.disjunction();
+				}
+				predicates.add(root.get("tenantId").in(tenantIds));
+			}
+
+			predicates.add(criteriaBuilder.or(
+				containsIgnoreCase(root.get("commonName"), searchTerm, criteriaBuilder),
+				containsIgnoreCase(root.get("subjectDn"), searchTerm, criteriaBuilder),
+				containsIgnoreCase(root.get("issuerDn"), searchTerm, criteriaBuilder),
+				containsIgnoreCase(root.get("serialNumber"), searchTerm, criteriaBuilder),
+				containsIgnoreCase(root.get("sha256Fingerprint"), searchTerm, criteriaBuilder),
+				containsIgnoreCase(root.get("sans"), searchTerm, criteriaBuilder),
+				containsIgnoreCase(root.get("owner"), searchTerm, criteriaBuilder)));
 			return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
 		};
 	}

@@ -65,7 +65,11 @@ public final class CurrentActor {
 		return Set.of();
 	}
 
-	private static boolean hasAuthority(String authorityName) {
+	public static boolean hasPermission(Permission permission) {
+		return hasAuthority(AuthorityNames.permission(permission));
+	}
+
+	public static boolean hasAuthority(String authorityName) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null) {
 			return false;

@@ -15,6 +15,13 @@ All public backend APIs live under `/api/v1`.
 - `PUT /api/v1/certificates/{certificateId}/metadata` - replace typed custom metadata.
 - `POST /api/v1/certificates/{certificateId}/status` - record a status transition with reason.
 - `GET /api/v1/certificates/{certificateId}/status-history` - read status transition history.
+- `GET /api/v1/search` - tenant-scoped global search returning typed results.
+- `GET /api/v1/service-accounts` - list visible service accounts.
+- `GET /api/v1/service-accounts/{serviceAccountId}/tokens` - list redacted API token metadata for a service account.
+- `POST /api/v1/service-accounts` - create a service account.
+- `POST /api/v1/service-accounts/{serviceAccountId}/tokens` - create an API token and return the raw token once.
+- `POST /api/v1/api-tokens/{tokenId}/rotate` - rotate a token and return the raw token once.
+- `POST /api/v1/api-tokens/{tokenId}/revoke` - revoke a token.
 - `GET /api/v1/tasks/{taskId}` - redacted async task status requiring `PERMISSION_TASK_READ`.
 - `GET /v3/api-docs` - generated OpenAPI JSON.
 - `GET /swagger-ui` - generated Swagger UI.
@@ -30,8 +37,11 @@ Service account bearer tokens are tenant-scoped and permission-scoped. Raw token
 Certificate inventory endpoints use:
 
 - `PERMISSION_CERTIFICATE_READ` for list, detail, and status-history reads.
+- `PERMISSION_CERTIFICATE_READ` for global certificate search.
 - `PERMISSION_CERTIFICATE_IMPORT` for PEM import and source observations.
 - `PERMISSION_CERTIFICATE_MANAGE` for tags, metadata, and status updates.
+
+Service account endpoints use `PERMISSION_SERVICE_ACCOUNT_READ` for service account and token metadata reads, and `PERMISSION_SERVICE_ACCOUNT_MANAGE` for create, rotate, and revoke operations.
 
 ## Error Envelope
 

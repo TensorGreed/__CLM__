@@ -17,12 +17,16 @@ Raw token secrets are returned only once when a token is created or rotated.
 
 ## Endpoints
 
+- `GET /api/v1/service-accounts`
 - `POST /api/v1/service-accounts`
+- `GET /api/v1/service-accounts/{serviceAccountId}/tokens`
 - `POST /api/v1/service-accounts/{serviceAccountId}/tokens`
 - `POST /api/v1/api-tokens/{tokenId}/rotate`
 - `POST /api/v1/api-tokens/{tokenId}/revoke`
 
-These endpoints require `PERMISSION_SERVICE_ACCOUNT_MANAGE`.
+Read endpoints require `PERMISSION_SERVICE_ACCOUNT_READ`. Create, rotate, and revoke endpoints require `PERMISSION_SERVICE_ACCOUNT_MANAGE`.
+
+Token list responses include prefix, status, scopes, and expiration. They never return raw token secrets.
 
 ## Token Use
 

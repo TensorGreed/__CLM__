@@ -52,6 +52,13 @@ class ServiceAccountTokenIntegrationTests {
 		assertThat(serviceAccountResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(serviceAccountResponse.getBody()).isNotNull();
 
+		ResponseEntity<String> serviceAccountsResponse = adminClient.getForEntity(
+			url("/api/v1/service-accounts?tenantId=" + bootstrap.tenantId()),
+			String.class);
+		assertThat(serviceAccountsResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(objectMapper.readTree(serviceAccountsResponse.getBody()).get(0).path("name").asText())
+			.isEqualTo("inventory-importer");
+
 		ResponseEntity<ApiTokenSecretResponse> tokenResponse = adminClient.postForEntity(
 			url("/api/v1/service-accounts/" + serviceAccountResponse.getBody().id() + "/tokens"),
 			new ApiTokenCreateRequest(Set.of(Permission.TENANT_READ), Instant.now().plusSeconds(3600)),
@@ -60,6 +67,15 @@ class ServiceAccountTokenIntegrationTests {
 		assertThat(tokenResponse.getBody()).isNotNull();
 		String firstToken = tokenResponse.getBody().token();
 		assertThat(firstToken).startsWith("clm_");
+
+		ResponseEntity<String> tokensResponse = adminClient.getForEntity(
+			url("/api/v1/service-accounts/" + serviceAccountResponse.getBody().id() + "/tokens"),
+			String.class);
+		assertThat(tokensResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		JsonNode tokenList = objectMapper.readTree(tokensResponse.getBody());
+		assertThat(tokenList).hasSize(1);
+		assertThat(tokenList.get(0).path("tokenPrefix").asText()).isEqualTo(tokenResponse.getBody().tokenPrefix());
+		assertThat(tokenList.get(0).toString()).doesNotContain(firstToken);
 
 		ResponseEntity<String> scopedRead = restTemplate.exchange(
 			RequestEntity.get(url("/api/v1/tenants"))

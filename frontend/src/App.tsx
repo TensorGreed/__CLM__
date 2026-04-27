@@ -13,6 +13,8 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ApiError,
   createHttpApiClient,
+  type ApiTokenResponse,
+  type ApiTokenSecretResponse,
   type ApiClient,
   type ApiSession,
   type CertificateAuditEventResponse,
@@ -25,9 +27,14 @@ import {
   type CertificateStatusHistoryResponse,
   type CertificateSummaryResponse,
   type CertificateVersionResponse,
+  type OrganizationResponse,
   type PageResponse,
   type Permission,
+  type PermissionResponse,
+  type RoleResponse,
   type RoleKey,
+  type SearchResponse,
+  type ServiceAccountResponse,
   type TenantResponse,
 } from './api'
 
@@ -176,6 +183,18 @@ export function App({
       <Routes>
         <Route path="/" element={<Navigate to="/certificates" replace />} />
         <Route
+          path="/search"
+          element={
+            <RequirePermission session={session} permission="CERTIFICATE_READ">
+              <GlobalSearchPage
+                key={`search-${location.search}`}
+                apiClient={apiClient}
+                session={session}
+              />
+            </RequirePermission>
+          }
+        />
+        <Route
           path="/certificates"
           element={
             <RequirePermission session={session} permission="CERTIFICATE_READ">
@@ -200,6 +219,22 @@ export function App({
             </RequirePermission>
           }
         />
+        <Route
+          path="/settings"
+          element={
+            <RequireAnyPermission
+              session={session}
+              permissions={[
+                'TENANT_READ',
+                'ORGANIZATION_READ',
+                'ROLE_READ',
+                'SERVICE_ACCOUNT_READ',
+              ]}
+            >
+              <SettingsPage apiClient={apiClient} session={session} />
+            </RequireAnyPermission>
+          }
+        />
         <Route path="/system" element={<SystemPage session={session} />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
@@ -221,7 +256,7 @@ function AppShell({ session, updateSession, apiClient, children }: ShellProps) {
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const value = search.trim()
-    navigate(value ? `/certificates?search=${encodeURIComponent(value)}` : '/certificates')
+    navigate(value ? `/search?q=${encodeURIComponent(value)}` : '/search')
   }
 
   return (
@@ -249,6 +284,22 @@ function AppShell({ session, updateSession, apiClient, children }: ShellProps) {
               Certificates
             </NavLink>
           ) : null}
+          {hasAnyPermission(session.role, [
+            'TENANT_READ',
+            'ORGANIZATION_READ',
+            'ROLE_READ',
+            'SERVICE_ACCOUNT_READ',
+          ]) ? (
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              <span aria-hidden="true">SE</span>
+              Settings
+            </NavLink>
+          ) : null}
           <NavLink
             to="/system"
             className={({ isActive }) =>
@@ -267,7 +318,7 @@ function AppShell({ session, updateSession, apiClient, children }: ShellProps) {
         <header className="topbar">
           <form className="global-search" role="search" onSubmit={submitSearch}>
             <label className="visually-hidden" htmlFor="global-search">
-              Search certificates
+              Global search
             </label>
             <input
               id="global-search"
@@ -433,6 +484,921 @@ function TenantSelector({
         </option>
       </select>
     </label>
+  )
+}
+
+function GlobalSearchPage({
+  apiClient,
+  session,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+}) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const query = searchParams.get('q') ?? ''
+  const [draft, setDraft] = useState(query)
+  const [state, setState] = useState<LoadState<SearchResponse>>(() =>
+    query.trim() ? { status: 'loading' } : { status: 'idle' },
+  )
+
+  useEffect(() => {
+    const normalizedQuery = query.trim()
+    if (!normalizedQuery) {
+      return
+    }
+    const controller = new AbortController()
+    apiClient
+      .globalSearch(
+        normalizedQuery,
+        session.tenantId || undefined,
+        session,
+        controller.signal,
+      )
+      .then((data) => setState({ status: 'success', data }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, query, session])
+
+  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const normalizedQuery = draft.trim()
+    setSearchParams(normalizedQuery ? { q: normalizedQuery } : {})
+  }
+
+  return (
+    <section className="workspace" aria-labelledby="search-heading">
+      <div className="workspace-header">
+        <div>
+          <p className="eyebrow">Search</p>
+          <h1 id="search-heading">Global Search</h1>
+        </div>
+      </div>
+
+      <form className="search-panel" role="search" onSubmit={submitSearch}>
+        <label>
+          Search term
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            autoFocus
+          />
+        </label>
+        <button type="submit">Search</button>
+      </form>
+
+      {state.status === 'idle' ? <EmptyState title="Enter a search term" /> : null}
+      {state.status === 'loading' ? <LoadingState label="Searching" /> : null}
+      {state.status === 'error' ? <ErrorState error={state.error} /> : null}
+      {state.status === 'success' && state.data.results.length === 0 ? (
+        <EmptyState title="No results found" />
+      ) : null}
+      {state.status === 'success' && state.data.results.length > 0 ? (
+        <div className="result-list">
+          {state.data.results.map((result) => (
+            <Link className="result-row" to={result.href} key={`${result.type}-${result.id}`}>
+              <span className="type-pill">{result.type}</span>
+              <strong>{result.title}</strong>
+              <span>{truncateMiddle(result.subtitle, 110)}</span>
+              <small>
+                {result.status} | {result.matchedFields.join(', ')}
+              </small>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+const settingsTabs = [
+  { key: 'tenants', label: 'Tenants', permission: 'TENANT_READ' },
+  { key: 'organizations', label: 'Organizations', permission: 'ORGANIZATION_READ' },
+  { key: 'users-groups', label: 'Users & Groups', permission: 'ROLE_READ' },
+  { key: 'roles', label: 'Roles', permission: 'ROLE_READ' },
+  { key: 'service-accounts', label: 'Service Accounts', permission: 'SERVICE_ACCOUNT_READ' },
+] as const
+
+type SettingsTabKey = (typeof settingsTabs)[number]['key']
+
+function SettingsPage({
+  apiClient,
+  session,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+}) {
+  const visibleTabs = settingsTabs.filter((tab) =>
+    hasPermission(session.role, tab.permission),
+  )
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>(
+    visibleTabs[0]?.key ?? 'tenants',
+  )
+  const effectiveTab = visibleTabs.some((tab) => tab.key === activeTab)
+    ? activeTab
+    : visibleTabs[0]?.key
+
+  if (!effectiveTab) {
+    return <PermissionDenied requiredPermission="ROLE_READ" />
+  }
+
+  return (
+    <section className="workspace" aria-labelledby="settings-heading">
+      <div className="workspace-header">
+        <div>
+          <p className="eyebrow">Administration</p>
+          <h1 id="settings-heading">Settings</h1>
+        </div>
+      </div>
+
+      <div className="tabs" role="tablist" aria-label="Settings sections">
+        {visibleTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={effectiveTab === tab.key}
+            className={effectiveTab === tab.key ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="tab-panel">
+        {effectiveTab === 'tenants' ? (
+          <TenantSettings apiClient={apiClient} session={session} />
+        ) : null}
+        {effectiveTab === 'organizations' ? (
+          <OrganizationSettings apiClient={apiClient} session={session} />
+        ) : null}
+        {effectiveTab === 'users-groups' ? (
+          <UsersGroupsSettings />
+        ) : null}
+        {effectiveTab === 'roles' ? (
+          <RolesSettings apiClient={apiClient} session={session} />
+        ) : null}
+        {effectiveTab === 'service-accounts' ? (
+          <ServiceAccountSettings apiClient={apiClient} session={session} />
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function TenantSettings({
+  apiClient,
+  session,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+}) {
+  const canManage = hasPermission(session.role, 'TENANT_MANAGE')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [state, setState] = useState<LoadState<TenantResponse[]>>({
+    status: 'loading',
+  })
+  const [slug, setSlug] = useState('')
+  const [name, setName] = useState('')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    apiClient
+      .listTenants(session, controller.signal)
+      .then((data) => setState({ status: 'success', data }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, session, refreshKey])
+
+  async function createTenant(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setMessage('')
+    try {
+      await apiClient.createTenant({ slug, name }, session)
+      setSlug('')
+      setName('')
+      setMessage('Tenant created')
+      setRefreshKey((current) => current + 1)
+    } catch (error) {
+      setState({ status: 'error', error })
+    }
+  }
+
+  if (state.status === 'loading' || state.status === 'idle') {
+    return <LoadingState label="Loading tenants" />
+  }
+  if (state.status === 'error') {
+    return <ErrorState error={state.error} />
+  }
+  if (state.status !== 'success') {
+    return <LoadingState label="Loading tenants" />
+  }
+  const tenants = state.data
+
+  return (
+    <div className="settings-grid">
+      {canManage ? (
+        <form className="settings-form" onSubmit={createTenant}>
+          <h2>Create tenant</h2>
+          <label>
+            Slug
+            <input value={slug} onChange={(event) => setSlug(event.target.value)} />
+          </label>
+          <label>
+            Name
+            <input value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <button type="submit">Create</button>
+          {message ? <p className="form-message">{message}</p> : null}
+        </form>
+      ) : null}
+
+      <div className="table-wrap">
+        <table className="data-table compact">
+          <thead>
+            <tr>
+              <th scope="col">Tenant</th>
+              <th scope="col">Slug</th>
+              <th scope="col">Status</th>
+              <th scope="col">Default</th>
+              {canManage ? <th scope="col">Update</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {tenants.map((tenant) => (
+              <TenantRow
+                key={tenant.id}
+                tenant={tenant}
+                canManage={canManage}
+                session={session}
+                apiClient={apiClient}
+                onUpdated={() => setRefreshKey((current) => current + 1)}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function TenantRow({
+  tenant,
+  canManage,
+  session,
+  apiClient,
+  onUpdated,
+}: {
+  tenant: TenantResponse
+  canManage: boolean
+  session: ApiSession
+  apiClient: ApiClient
+  onUpdated: () => void
+}) {
+  const [name, setName] = useState(tenant.name)
+  const [status, setStatus] = useState(tenant.status)
+
+  async function updateTenant() {
+    await apiClient.updateTenant(tenant.id, { name, status }, session)
+    onUpdated()
+  }
+
+  return (
+    <tr>
+      <td className="primary-cell">
+        <strong>{tenant.name}</strong>
+        <span>{tenant.id}</span>
+      </td>
+      <td>{tenant.slug}</td>
+      <td>{tenant.status}</td>
+      <td>{tenant.defaultTenant ? 'Yes' : 'No'}</td>
+      {canManage ? (
+        <td>
+          <div className="inline-edit">
+            <input
+              aria-label={`Name for ${tenant.name}`}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <select
+              aria-label={`Status for ${tenant.name}`}
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="DISABLED">DISABLED</option>
+            </select>
+            <button type="button" className="secondary-button" onClick={updateTenant}>
+              Save
+            </button>
+          </div>
+        </td>
+      ) : null}
+    </tr>
+  )
+}
+
+function OrganizationSettings({
+  apiClient,
+  session,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+}) {
+  const canManage = hasPermission(session.role, 'ORGANIZATION_MANAGE')
+  const [selectedTenantId, setSelectedTenantId] = useState(session.tenantId)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [tenantState, setTenantState] = useState<LoadState<TenantResponse[]>>({
+    status: 'loading',
+  })
+  const [organizationState, setOrganizationState] = useState<LoadState<OrganizationResponse[]>>({
+    status: 'loading',
+  })
+  const [slug, setSlug] = useState('')
+  const [name, setName] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    apiClient
+      .listTenants(session, controller.signal)
+      .then((data) => setTenantState({ status: 'success', data }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setTenantState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, session])
+
+  const tenants = tenantState.status === 'success' ? tenantState.data : []
+  const effectiveTenantId = selectedTenantId || tenants[0]?.id || ''
+
+  useEffect(() => {
+    if (!effectiveTenantId) {
+      return
+    }
+    const controller = new AbortController()
+    apiClient
+      .listOrganizations(effectiveTenantId, session, controller.signal)
+      .then((data) => setOrganizationState({ status: 'success', data }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setOrganizationState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, effectiveTenantId, session, refreshKey])
+
+  async function createOrganization(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!effectiveTenantId) {
+      return
+    }
+    try {
+      await apiClient.createOrganization(effectiveTenantId, { slug, name }, session)
+      setSlug('')
+      setName('')
+      setRefreshKey((current) => current + 1)
+    } catch (error) {
+      setOrganizationState({ status: 'error', error })
+    }
+  }
+
+  if (tenantState.status === 'loading' || tenantState.status === 'idle') {
+    return <LoadingState label="Loading tenants" />
+  }
+  if (tenantState.status === 'error') {
+    return <ErrorState error={tenantState.error} />
+  }
+
+  return (
+    <div className="settings-grid">
+      <form className="settings-form" onSubmit={createOrganization}>
+        <h2>Organizations</h2>
+        <label>
+          Tenant
+          <select
+            value={effectiveTenantId}
+            onChange={(event) => setSelectedTenantId(event.target.value)}
+          >
+            {tenants.map((tenant) => (
+              <option value={tenant.id} key={tenant.id}>
+                {tenant.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {canManage ? (
+          <>
+            <label>
+              Slug
+              <input value={slug} onChange={(event) => setSlug(event.target.value)} />
+            </label>
+            <label>
+              Name
+              <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <button type="submit">Create</button>
+          </>
+        ) : null}
+      </form>
+
+      {organizationState.status === 'loading' || organizationState.status === 'idle' ? (
+        <LoadingState label="Loading organizations" />
+      ) : null}
+      {organizationState.status === 'error' ? (
+        <ErrorState error={organizationState.error} />
+      ) : null}
+      {organizationState.status === 'success' ? (
+        <div className="table-wrap">
+          <table className="data-table compact">
+            <thead>
+              <tr>
+                <th scope="col">Organization</th>
+                <th scope="col">Slug</th>
+                <th scope="col">Status</th>
+                {canManage ? <th scope="col">Update</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {organizationState.data.map((organization) => (
+                <OrganizationRow
+                  key={organization.id}
+                  organization={organization}
+                  canManage={canManage}
+                  session={session}
+                  apiClient={apiClient}
+                  onUpdated={() => setRefreshKey((current) => current + 1)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function OrganizationRow({
+  organization,
+  canManage,
+  session,
+  apiClient,
+  onUpdated,
+}: {
+  organization: OrganizationResponse
+  canManage: boolean
+  session: ApiSession
+  apiClient: ApiClient
+  onUpdated: () => void
+}) {
+  const [name, setName] = useState(organization.name)
+  const [status, setStatus] = useState(organization.status)
+
+  async function updateOrganization() {
+    await apiClient.updateOrganization(
+      organization.tenantId,
+      organization.id,
+      { name, status },
+      session,
+    )
+    onUpdated()
+  }
+
+  return (
+    <tr>
+      <td className="primary-cell">
+        <strong>{organization.name}</strong>
+        <span>{organization.id}</span>
+      </td>
+      <td>{organization.slug}</td>
+      <td>{organization.status}</td>
+      {canManage ? (
+        <td>
+          <div className="inline-edit">
+            <input
+              aria-label={`Name for ${organization.name}`}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <select
+              aria-label={`Status for ${organization.name}`}
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="DISABLED">DISABLED</option>
+            </select>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={updateOrganization}
+            >
+              Save
+            </button>
+          </div>
+        </td>
+      ) : null}
+    </tr>
+  )
+}
+
+function UsersGroupsSettings() {
+  const mappings = [
+    ['clm-admins', 'ADMIN'],
+    ['clm-operators', 'OPERATOR'],
+    ['clm-auditors', 'AUDITOR'],
+  ]
+  return (
+    <div className="settings-grid">
+      <div className="table-wrap">
+        <table className="data-table compact">
+          <thead>
+            <tr>
+              <th scope="col">Identity source</th>
+              <th scope="col">Group</th>
+              <th scope="col">Mapped role</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mappings.map(([group, role]) => (
+              <tr key={group}>
+                <td>OIDC</td>
+                <td>{group}</td>
+                <td>{role}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <dl className="system-list">
+        <div>
+          <dt>Local users</dt>
+          <dd>Bootstrap admin</dd>
+        </div>
+        <div>
+          <dt>Group claim</dt>
+          <dd>groups</dd>
+        </div>
+        <div>
+          <dt>Provisioning</dt>
+          <dd>OIDC group mapping</dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
+function RolesSettings({
+  apiClient,
+  session,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+}) {
+  const [state, setState] = useState<LoadState<{
+    roles: RoleResponse[]
+    permissions: PermissionResponse[]
+  }>>({ status: 'loading' })
+
+  useEffect(() => {
+    const controller = new AbortController()
+    Promise.all([
+      apiClient.listRoles(session, controller.signal),
+      apiClient.listPermissions(session, controller.signal),
+    ])
+      .then(([roles, permissions]) => setState({ status: 'success', data: { roles, permissions } }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, session])
+
+  if (state.status === 'loading' || state.status === 'idle') {
+    return <LoadingState label="Loading roles" />
+  }
+  if (state.status === 'error') {
+    return <ErrorState error={state.error} />
+  }
+  if (state.status !== 'success') {
+    return <LoadingState label="Loading roles" />
+  }
+  const { roles, permissions } = state.data
+
+  return (
+    <div className="settings-grid">
+      <div className="table-wrap">
+        <table className="data-table compact permission-matrix">
+          <thead>
+            <tr>
+              <th scope="col">Role</th>
+              <th scope="col">Permissions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roles.map((role) => (
+              <tr key={role.key}>
+                <td>{roleLabel(role.key)}</td>
+                <td>{role.permissions.join(', ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <dl className="system-list">
+        <div>
+          <dt>Total permissions</dt>
+          <dd>{permissions.length}</dd>
+        </div>
+        <div>
+          <dt>Role source</dt>
+          <dd>Built-in matrix</dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
+function ServiceAccountSettings({
+  apiClient,
+  session,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+}) {
+  const canManage = hasPermission(session.role, 'SERVICE_ACCOUNT_MANAGE')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [state, setState] = useState<LoadState<ServiceAccountResponse[]>>({
+    status: 'loading',
+  })
+  const [selectedAccountId, setSelectedAccountId] = useState('')
+  const [name, setName] = useState('')
+  const [lastSecret, setLastSecret] = useState<ApiTokenSecretResponse | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    apiClient
+      .listServiceAccounts(session.tenantId || undefined, session, controller.signal)
+      .then((data) => setState({ status: 'success', data }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, session, refreshKey])
+
+  const accounts = state.status === 'success' ? state.data : []
+  const effectiveAccountId = selectedAccountId || accounts[0]?.id || ''
+
+  async function createServiceAccount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!session.tenantId) {
+      return
+    }
+    try {
+      await apiClient.createServiceAccount({ tenantId: session.tenantId, name }, session)
+      setName('')
+      setRefreshKey((current) => current + 1)
+    } catch (error) {
+      setState({ status: 'error', error })
+    }
+  }
+
+  if (state.status === 'loading' || state.status === 'idle') {
+    return <LoadingState label="Loading service accounts" />
+  }
+  if (state.status === 'error') {
+    return <ErrorState error={state.error} />
+  }
+  if (state.status !== 'success') {
+    return <LoadingState label="Loading service accounts" />
+  }
+
+  return (
+    <div className="settings-grid">
+      <form className="settings-form" onSubmit={createServiceAccount}>
+        <h2>Service accounts</h2>
+        <label>
+          Account
+          <select
+            value={effectiveAccountId}
+            onChange={(event) => setSelectedAccountId(event.target.value)}
+          >
+            {accounts.map((account) => (
+              <option value={account.id} key={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {canManage ? (
+          <>
+            <label>
+              New account name
+              <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <button type="submit" disabled={!session.tenantId}>
+              Create
+            </button>
+          </>
+        ) : null}
+      </form>
+
+      {accounts.length === 0 ? <EmptyState title="No service accounts found" /> : null}
+      {accounts.length > 0 ? (
+        <div className="table-wrap">
+          <table className="data-table compact">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Tenant</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accounts.map((account) => (
+                <tr key={account.id}>
+                  <td className="primary-cell">
+                    <strong>{account.name}</strong>
+                    <span>{account.id}</span>
+                  </td>
+                  <td>{account.tenantId}</td>
+                  <td>{account.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {effectiveAccountId ? (
+        <TokenSettings
+          apiClient={apiClient}
+          session={session}
+          serviceAccountId={effectiveAccountId}
+          canManage={canManage}
+          lastSecret={lastSecret}
+          onSecret={setLastSecret}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function TokenSettings({
+  apiClient,
+  session,
+  serviceAccountId,
+  canManage,
+  lastSecret,
+  onSecret,
+}: {
+  apiClient: ApiClient
+  session: ApiSession
+  serviceAccountId: string
+  canManage: boolean
+  lastSecret: ApiTokenSecretResponse | null
+  onSecret: (secret: ApiTokenSecretResponse | null) => void
+}) {
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [state, setState] = useState<LoadState<ApiTokenResponse[]>>({
+    status: 'loading',
+  })
+  const [scope, setScope] = useState<Permission>('CERTIFICATE_READ')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    apiClient
+      .listApiTokens(serviceAccountId, session, controller.signal)
+      .then((data) => setState({ status: 'success', data }))
+      .catch((error: unknown) => {
+        if (!isAbortError(error)) {
+          setState({ status: 'error', error })
+        }
+      })
+    return () => controller.abort()
+  }, [apiClient, serviceAccountId, session, refreshKey])
+
+  async function createToken() {
+    const secret = await apiClient.createApiToken(
+      serviceAccountId,
+      { scopes: [scope], expiresAt: null },
+      session,
+    )
+    onSecret(secret)
+    setRefreshKey((current) => current + 1)
+  }
+
+  async function rotateToken(tokenId: string) {
+    const secret = await apiClient.rotateApiToken(tokenId, session)
+    onSecret(secret)
+    setRefreshKey((current) => current + 1)
+  }
+
+  async function revokeToken(tokenId: string) {
+    await apiClient.revokeApiToken(tokenId, session)
+    onSecret(null)
+    setRefreshKey((current) => current + 1)
+  }
+
+  if (state.status === 'loading' || state.status === 'idle') {
+    return <LoadingState label="Loading API tokens" />
+  }
+  if (state.status === 'error') {
+    return <ErrorState error={state.error} />
+  }
+  if (state.status !== 'success') {
+    return <LoadingState label="Loading API tokens" />
+  }
+  const tokens = state.data
+
+  return (
+    <div className="token-panel">
+      {lastSecret ? (
+        <div className="secret-panel">
+          <strong>Token secret</strong>
+          <code>{lastSecret.token}</code>
+        </div>
+      ) : null}
+      {canManage ? (
+        <div className="inline-edit">
+          <label>
+            Scope
+            <select
+              value={scope}
+              onChange={(event) => setScope(event.target.value as Permission)}
+            >
+              {rolePermissions.ADMIN.filter((permission) => permission !== 'SENSITIVE_ACTION_EXECUTE').map((permission) => (
+                <option value={permission} key={permission}>
+                  {permission}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={createToken}>
+            Create token
+          </button>
+        </div>
+      ) : null}
+      {tokens.length === 0 ? <EmptyState title="No API tokens found" /> : null}
+      {tokens.length > 0 ? (
+        <div className="table-wrap">
+          <table className="data-table compact">
+            <thead>
+              <tr>
+                <th scope="col">Prefix</th>
+                <th scope="col">Status</th>
+                <th scope="col">Scopes</th>
+                <th scope="col">Expires</th>
+                {canManage ? <th scope="col">Actions</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {tokens.map((token) => (
+                <tr key={token.id}>
+                  <td>{token.tokenPrefix}</td>
+                  <td>{token.status}</td>
+                  <td>{token.scopes.join(', ')}</td>
+                  <td>{token.expiresAt ? formatDate(token.expiresAt) : 'Never'}</td>
+                  {canManage ? (
+                    <td>
+                      <div className="inline-edit">
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => rotateToken(token.id)}
+                        >
+                          Rotate
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => revokeToken(token.id)}
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -1189,6 +2155,21 @@ function RequirePermission({
   return children
 }
 
+function RequireAnyPermission({
+  session,
+  permissions,
+  children,
+}: {
+  session: ApiSession
+  permissions: Permission[]
+  children: React.ReactNode
+}) {
+  if (!hasAnyPermission(session.role, permissions)) {
+    return <PermissionDenied requiredPermission={permissions[0] ?? 'ROLE_READ'} />
+  }
+  return children
+}
+
 function PermissionDenied({
   requiredPermission,
 }: {
@@ -1344,6 +2325,10 @@ function inventoryFilters(query: InventoryQueryState) {
 
 function hasPermission(role: RoleKey, permission: Permission) {
   return rolePermissions[role].includes(permission)
+}
+
+function hasAnyPermission(role: RoleKey, permissions: Permission[]) {
+  return permissions.some((permission) => hasPermission(role, permission))
 }
 
 function roleLabel(role: RoleKey) {

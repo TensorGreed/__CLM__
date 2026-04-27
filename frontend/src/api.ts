@@ -71,6 +71,99 @@ export interface TenantResponse {
   name: string
   status: string
   defaultTenant: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface TenantCreateRequest {
+  slug: string
+  name: string
+}
+
+export interface TenantUpdateRequest {
+  name: string
+  status: string
+}
+
+export interface OrganizationResponse {
+  id: string
+  tenantId: string
+  slug: string
+  name: string
+  status: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface OrganizationCreateRequest {
+  slug: string
+  name: string
+}
+
+export interface OrganizationUpdateRequest {
+  name: string
+  status: string
+}
+
+export interface RoleResponse {
+  key: RoleKey
+  permissions: Permission[]
+}
+
+export interface PermissionResponse {
+  key: Permission
+}
+
+export interface ServiceAccountResponse {
+  id: string
+  tenantId: string
+  name: string
+  status: string
+}
+
+export interface ServiceAccountCreateRequest {
+  tenantId: string
+  name: string
+}
+
+export interface ApiTokenResponse {
+  id: string
+  serviceAccountId: string
+  tokenPrefix: string
+  status: string
+  scopes: Permission[]
+  expiresAt: string | null
+}
+
+export interface ApiTokenCreateRequest {
+  scopes: Permission[]
+  expiresAt: string | null
+}
+
+export interface ApiTokenSecretResponse {
+  id: string
+  serviceAccountId: string
+  tokenPrefix: string
+  token: string
+  scopes: Permission[]
+  expiresAt: string | null
+}
+
+export interface SearchResultResponse {
+  type: 'certificate' | string
+  id: string
+  tenantId: string | null
+  title: string
+  subtitle: string
+  status: string
+  href: string
+  matchedFields: string[]
+}
+
+export interface SearchResponse {
+  query: string
+  limit: number
+  results: SearchResultResponse[]
 }
 
 export interface CertificateSummaryResponse {
@@ -184,6 +277,71 @@ export interface CertificateListQuery {
 
 export interface ApiClient {
   listTenants(session: ApiSession, signal?: AbortSignal): Promise<TenantResponse[]>
+  createTenant(
+    request: TenantCreateRequest,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<TenantResponse>
+  updateTenant(
+    tenantId: string,
+    request: TenantUpdateRequest,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<TenantResponse>
+  listOrganizations(
+    tenantId: string,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<OrganizationResponse[]>
+  createOrganization(
+    tenantId: string,
+    request: OrganizationCreateRequest,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<OrganizationResponse>
+  updateOrganization(
+    tenantId: string,
+    organizationId: string,
+    request: OrganizationUpdateRequest,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<OrganizationResponse>
+  listRoles(session: ApiSession, signal?: AbortSignal): Promise<RoleResponse[]>
+  listPermissions(
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<PermissionResponse[]>
+  listServiceAccounts(
+    tenantId: string | undefined,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<ServiceAccountResponse[]>
+  createServiceAccount(
+    request: ServiceAccountCreateRequest,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<ServiceAccountResponse>
+  listApiTokens(
+    serviceAccountId: string,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<ApiTokenResponse[]>
+  createApiToken(
+    serviceAccountId: string,
+    request: ApiTokenCreateRequest,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<ApiTokenSecretResponse>
+  rotateApiToken(
+    tokenId: string,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<ApiTokenSecretResponse>
+  revokeApiToken(
+    tokenId: string,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<ApiTokenResponse>
   listCertificates(
     query: CertificateListQuery,
     session: ApiSession,
@@ -194,6 +352,12 @@ export interface ApiClient {
     session: ApiSession,
     signal?: AbortSignal,
   ): Promise<CertificateDetailResponse>
+  globalSearch(
+    query: string,
+    tenantId: string | undefined,
+    session: ApiSession,
+    signal?: AbortSignal,
+  ): Promise<SearchResponse>
 }
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
@@ -202,6 +366,72 @@ export function createHttpApiClient(): ApiClient {
   return {
     listTenants: (session, signal) =>
       requestJson<TenantResponse[]>('/api/v1/tenants', session, { signal }),
+    createTenant: (request, session, signal) =>
+      requestJson<TenantResponse>('/api/v1/tenants', session, jsonInit('POST', request, signal)),
+    updateTenant: (tenantId, request, session, signal) =>
+      requestJson<TenantResponse>(
+        `/api/v1/tenants/${tenantId}`,
+        session,
+        jsonInit('PUT', request, signal),
+      ),
+    listOrganizations: (tenantId, session, signal) =>
+      requestJson<OrganizationResponse[]>(
+        `/api/v1/tenants/${tenantId}/organizations`,
+        session,
+        { signal },
+      ),
+    createOrganization: (tenantId, request, session, signal) =>
+      requestJson<OrganizationResponse>(
+        `/api/v1/tenants/${tenantId}/organizations`,
+        session,
+        jsonInit('POST', request, signal),
+      ),
+    updateOrganization: (tenantId, organizationId, request, session, signal) =>
+      requestJson<OrganizationResponse>(
+        `/api/v1/tenants/${tenantId}/organizations/${organizationId}`,
+        session,
+        jsonInit('PUT', request, signal),
+      ),
+    listRoles: (session, signal) =>
+      requestJson<RoleResponse[]>('/api/v1/roles', session, { signal }),
+    listPermissions: (session, signal) =>
+      requestJson<PermissionResponse[]>('/api/v1/permissions', session, { signal }),
+    listServiceAccounts: (tenantId, session, signal) =>
+      requestJson<ServiceAccountResponse[]>(
+        serviceAccountListPath(tenantId),
+        session,
+        { signal },
+      ),
+    createServiceAccount: (request, session, signal) =>
+      requestJson<ServiceAccountResponse>(
+        '/api/v1/service-accounts',
+        session,
+        jsonInit('POST', request, signal),
+      ),
+    listApiTokens: (serviceAccountId, session, signal) =>
+      requestJson<ApiTokenResponse[]>(
+        `/api/v1/service-accounts/${serviceAccountId}/tokens`,
+        session,
+        { signal },
+      ),
+    createApiToken: (serviceAccountId, request, session, signal) =>
+      requestJson<ApiTokenSecretResponse>(
+        `/api/v1/service-accounts/${serviceAccountId}/tokens`,
+        session,
+        jsonInit('POST', request, signal),
+      ),
+    rotateApiToken: (tokenId, session, signal) =>
+      requestJson<ApiTokenSecretResponse>(
+        `/api/v1/api-tokens/${tokenId}/rotate`,
+        session,
+        jsonInit('POST', undefined, signal),
+      ),
+    revokeApiToken: (tokenId, session, signal) =>
+      requestJson<ApiTokenResponse>(
+        `/api/v1/api-tokens/${tokenId}/revoke`,
+        session,
+        jsonInit('POST', undefined, signal),
+      ),
     listCertificates: (query, session, signal) =>
       requestJson<PageResponse<CertificateSummaryResponse>>(
         certificateListPath(query),
@@ -214,6 +444,10 @@ export function createHttpApiClient(): ApiClient {
         session,
         { signal },
       ),
+    globalSearch: (query, tenantId, session, signal) =>
+      requestJson<SearchResponse>(globalSearchPath(query, tenantId), session, {
+        signal,
+      }),
   }
 }
 
@@ -231,6 +465,40 @@ function certificateListPath(query: CertificateListQuery) {
     params.set('sort', query.sort)
   }
   return `/api/v1/certificates?${params.toString()}`
+}
+
+function serviceAccountListPath(tenantId?: string) {
+  if (!tenantId) {
+    return '/api/v1/service-accounts'
+  }
+  const params = new URLSearchParams()
+  params.set('tenantId', tenantId)
+  return `/api/v1/service-accounts?${params.toString()}`
+}
+
+function globalSearchPath(query: string, tenantId?: string) {
+  const params = new URLSearchParams()
+  params.set('q', query)
+  params.set('limit', '10')
+  if (tenantId) {
+    params.set('tenantId', tenantId)
+  }
+  return `/api/v1/search?${params.toString()}`
+}
+
+function jsonInit(
+  method: 'POST' | 'PUT',
+  body: unknown,
+  signal?: AbortSignal,
+): RequestInit {
+  return {
+    method,
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }
 }
 
 async function requestJson<T>(

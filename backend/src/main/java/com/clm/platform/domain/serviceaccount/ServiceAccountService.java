@@ -2,6 +2,7 @@ package com.clm.platform.domain.serviceaccount;
 
 import java.time.Clock;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.clm.platform.api.error.ResourceNotFoundException;
 import com.clm.platform.domain.tenancy.TenancyService;
+import com.clm.platform.security.CurrentActor;
 import com.clm.platform.security.Permission;
 
 @Service
@@ -50,9 +52,36 @@ public class ServiceAccountService {
 	}
 
 	@Transactional(readOnly = true)
+	public List<ServiceAccount> list(UUID tenantId) {
+		if (tenantId != null) {
+			tenancyService.getTenant(tenantId);
+			return serviceAccountRepository.findByTenantIdOrderByNameAsc(tenantId);
+		}
+		if (CurrentActor.hasGlobalAccess()) {
+			return serviceAccountRepository.findAllByOrderByNameAsc();
+		}
+		List<UUID> tenantIds = CurrentActor.tenantIds().stream().sorted().toList();
+		if (tenantIds.isEmpty()) {
+			return List.of();
+		}
+		return serviceAccountRepository.findByTenantIdInOrderByNameAsc(tenantIds);
+	}
+
+	@Transactional(readOnly = true)
 	public ServiceAccount get(UUID serviceAccountId) {
-		return serviceAccountRepository.findById(serviceAccountId)
+		ServiceAccount serviceAccount = serviceAccountRepository.findById(serviceAccountId)
 			.orElseThrow(() -> new ResourceNotFoundException("ServiceAccount", serviceAccountId));
+		tenancyService.getTenant(serviceAccount.tenantId());
+		return serviceAccount;
+	}
+
+	@Transactional(readOnly = true)
+	public List<ApiTokenResponse> listTokens(UUID serviceAccountId) {
+		ServiceAccount serviceAccount = get(serviceAccountId);
+		return apiTokenRepository.findByServiceAccountIdOrderByCreatedAtDesc(serviceAccount.id())
+			.stream()
+			.map(apiToken -> ApiTokenResponse.from(apiToken, parseScopes(apiToken.scopes())))
+			.toList();
 	}
 
 	@Transactional

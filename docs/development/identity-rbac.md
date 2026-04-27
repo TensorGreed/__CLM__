@@ -61,6 +61,8 @@ Roles expand into `ROLE_*` and `PERMISSION_*` authorities at authentication time
 
 Both endpoints require `PERMISSION_ROLE_READ`.
 
+The frontend settings area shows the role and permission matrix to users with `PERMISSION_ROLE_READ`. Built-in roles are source-controlled in R1; custom role editing is reserved for later governance work.
+
 ## Tenants And Organizations
 
 Tenant APIs:
@@ -95,6 +97,17 @@ Current action types:
 - `DELETE_RESOURCE`
 - `BREAK_GLASS`
 
+## Frontend Settings
+
+R1-E05 adds settings pages for:
+
+- Tenants and organizations.
+- Users and OIDC group-role mapping status.
+- Built-in roles and permissions.
+- Service accounts and API tokens.
+
+Write controls render only when the selected role has the matching manage permission.
+
 ## Current Limits
 
-R1-E03 intentionally does not add user management screens, SCIM, SAML, ABAC, certificate inventory, or frontend business workflows. OIDC users receive authorities from group mapping, but persistent OIDC user provisioning is reserved for later governance work.
+R1 intentionally does not add SCIM, SAML, ABAC, custom roles, or persistent OIDC user provisioning. OIDC users receive authorities from group mapping, but full user and group lifecycle management is reserved for later governance work.

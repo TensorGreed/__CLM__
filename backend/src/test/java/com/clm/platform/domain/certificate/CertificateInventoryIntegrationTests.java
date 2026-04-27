@@ -235,6 +235,25 @@ class CertificateInventoryIntegrationTests {
 	}
 
 	@Test
+	void globalSearchReturnsTypedTenantScopedCertificateResults() throws Exception {
+		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
+		importCertificate(bootstrap.tenantId(), CertificatePemFixtures.INVENTORY_CERTIFICATE, null, "platform-team", false, Set.of("prod"));
+
+		ResponseEntity<String> response = TestBootstrap.adminClient(restTemplate)
+			.getForEntity(url("/api/v1/search?q=inventory&tenantId=" + bootstrap.tenantId()), String.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		JsonNode body = objectMapper.readTree(response.getBody());
+		assertThat(body.path("query").asText()).isEqualTo("inventory");
+		assertThat(body.path("results")).hasSize(1);
+		JsonNode result = body.path("results").get(0);
+		assertThat(result.path("type").asText()).isEqualTo("certificate");
+		assertThat(result.path("title").asText()).isEqualTo("inventory.example.test");
+		assertThat(result.path("href").asText()).startsWith("/certificates/");
+		assertThat(result.path("matchedFields").toString()).contains("subject");
+	}
+
+	@Test
 	void tagsAndTypedMetadataCanBeUpdatedSearchedAndAudited() throws Exception {
 		BootstrapAdminResponse bootstrap = TestBootstrap.createAdmin(restTemplate, baseUrl());
 		CertificateImportResponse imported = importCertificate(

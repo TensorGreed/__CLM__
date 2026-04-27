@@ -103,6 +103,8 @@ Supported sorts:
 
 Actors without global access are restricted to their assigned tenants even when `tenantId` is omitted.
 
+Global search uses `GET /api/v1/search?q=<term>`. In R1 it returns typed certificate results and applies the same certificate read permission and tenant scope rules.
+
 ## Detail API
 
 `GET /api/v1/certificates/{certificateId}` requires `PERMISSION_CERTIFICATE_READ`.
@@ -153,5 +155,6 @@ R1-E05 adds the first frontend inventory workflow:
 - Certificate inventory table.
 - Filters, sorting, pagination, saved columns, and bulk selection.
 - Certificate detail sections for summary, versions, chain, source observations, metadata, status history, audit events, and automation placeholders.
+- Global search for certificate results.
 
-Later inventory work includes private key handling, issuance, renewal, destinations, plugins, MCP, settings pages, and global cross-resource search.
+Later inventory work includes private key handling, issuance, renewal, destinations, plugins, MCP, and non-certificate search result types.

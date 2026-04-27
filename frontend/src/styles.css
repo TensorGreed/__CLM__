@@ -621,6 +621,134 @@ a {
   margin: 0;
 }
 
+.search-panel,
+.settings-form {
+  align-items: end;
+  border-bottom: 1px solid #e0e7ec;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+}
+
+.search-panel label,
+.settings-form label {
+  color: #52636e;
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.result-list {
+  border-top: 1px solid #e3e9ee;
+  display: grid;
+}
+
+.result-row {
+  align-items: center;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 110px minmax(180px, 0.7fr) minmax(220px, 1fr) minmax(150px, 0.7fr);
+  padding: 14px 0;
+  text-decoration: none;
+}
+
+.result-row + .result-row {
+  border-top: 1px solid #e3e9ee;
+}
+
+.result-row strong {
+  color: #172027;
+}
+
+.result-row span,
+.result-row small {
+  color: #5e6f7a;
+  min-width: 0;
+}
+
+.type-pill {
+  background: #e7f2f1;
+  border: 1px solid #c8dfdc;
+  border-radius: 999px;
+  color: #0c6b64;
+  font-size: 11px;
+  font-weight: 900;
+  justify-self: start;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-form {
+  grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+}
+
+.settings-form h2 {
+  align-self: center;
+  font-size: 15px;
+  margin: 0;
+}
+
+.form-message {
+  color: #0c6b64;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.inline-edit {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline-edit label {
+  color: #52636e;
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.inline-edit input,
+.inline-edit select {
+  min-width: 150px;
+}
+
+.permission-matrix td:last-child {
+  color: #53646f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.token-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.secret-panel {
+  background: #f5f8f9;
+  border: 1px solid #d7e1e6;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.secret-panel code {
+  color: #172027;
+  overflow-wrap: anywhere;
+}
+
 .mono {
   font-family:
     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace,
@@ -678,7 +806,9 @@ a {
   }
 
   .summary-strip,
-  .detail-grid {
+  .detail-grid,
+  .result-row,
+  .settings-form {
     grid-template-columns: 1fr;
   }
 }
