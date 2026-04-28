@@ -57,7 +57,15 @@ The migration adds indexes for source lookup, certificate observation lookup, me
 
 - `certificate_versions.public_key_size_bits`
 
-This stores safely derived public key size metadata only. It does not add private key, secret, credential, or external secret-reference storage.
+This stores safely derived public key size metadata only. It does not add private key, secret, or credential storage.
+
+## Certificate Key References Migration
+
+`V6__certificate_key_references.sql` creates:
+
+- `certificate_key_references`
+
+The table stores reference-only metadata for an externally managed private key after the supplied RSA or EC private key has matched the certificate version public key. It stores provider type, external reference URI, optional alias, key algorithm, verification flag, and creation audit fields. It intentionally does not store raw private key material or decrypted secret values.
 
 ## Test Profile
 

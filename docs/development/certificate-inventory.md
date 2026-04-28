@@ -1,6 +1,6 @@
 # Certificate Inventory
 
-R1-E04 starts the backend certificate inventory system of record. R2-E01 adds the first key-handling guardrails without enabling private key persistence.
+R1-E04 starts the backend certificate inventory system of record. R2-E01 adds key-handling guardrails, match validation, and external key references without enabling raw private key persistence.
 
 ## Current Scope
 
@@ -18,11 +18,11 @@ Implemented:
 - Explicit status history.
 - Inventory audit events.
 - Public key size metadata for RSA, EC, and DSA public keys when derivable from the certificate.
-- A disabled future private-key import endpoint with validation, audit, and redaction guardrails.
+- A guarded private-key import endpoint with RSA/EC key-match validation, audit, redaction, and reference-only storage when explicitly enabled.
 
 Not implemented yet:
 
-- Private key persistence, approved key storage, key-match validation, or key export.
+- Raw private key persistence, real approved key storage provider integrations, or key export.
 - Issuance, renewal, revocation, or deployment.
 
 ## Import API
@@ -40,7 +40,9 @@ The request accepts:
 
 The API rejects malformed PEM and any payload containing private key PEM blocks. The backend stores the public certificate PEM and parsed public metadata only.
 
-`POST /api/v1/certificates/import-with-private-key` is reserved for future legacy key onboarding. In the current guardrail slice it validates public certificate fields and the presence of a private key PEM block, emits an audit event for authorized policy rejections, returns `FORBIDDEN` by default, and stores no key material.
+`POST /api/v1/certificates/import-with-private-key` is the guarded legacy key onboarding contract. It validates the public certificate, rejects private keys in certificate and chain fields, verifies that an unencrypted PKCS#8 RSA or EC private key matches the certificate public key, emits audit events, returns `FORBIDDEN` by default, and stores no raw key material.
+
+When `CLM_PRIVATE_KEY_IMPORT_ENABLED=true`, `CLM_KEY_STORAGE_PROVIDER=external-reference`, and `CLM_PRIVATE_KEY_DATABASE_PERSISTENCE_ENABLED=false`, the endpoint stores only an approved `keyReference` for the matching key. Database private key persistence remains rejected.
 
 ## Source Observations
 
@@ -122,6 +124,7 @@ The response includes:
 - Imported chain entries for the current version.
 - Source observations.
 - Typed custom metadata.
+- External key reference for the current version when one has been validated and recorded.
 - Status history.
 - Recent audit timeline entries.
 
@@ -162,4 +165,4 @@ R1-E05 adds the first frontend inventory workflow:
 - Certificate detail sections for summary, versions, chain, source observations, metadata, status history, audit events, and automation placeholders.
 - Global search for certificate results.
 
-Later inventory work includes real private key storage providers, key-match validation, issuance, renewal, destinations, plugins, MCP, and non-certificate search result types.
+Later inventory work includes real external key storage providers, issuance, renewal, destinations, plugins, MCP, and non-certificate search result types.

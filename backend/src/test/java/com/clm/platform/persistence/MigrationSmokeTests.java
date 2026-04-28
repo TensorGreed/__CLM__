@@ -38,6 +38,9 @@ class MigrationSmokeTests {
 		Integer statusHistoryTableCount = jdbcTemplate.queryForObject(
 			"select count(*) from information_schema.tables where table_name = 'certificate_status_history'",
 			Integer.class);
+		Integer keyReferenceTableCount = jdbcTemplate.queryForObject(
+			"select count(*) from information_schema.tables where table_name = 'certificate_key_references'",
+			Integer.class);
 		Integer publicKeySizeColumnCount = jdbcTemplate.queryForObject(
 			"select count(*) from information_schema.columns where table_name = 'certificate_versions' and column_name = 'public_key_size_bits'",
 			Integer.class);
@@ -49,6 +52,7 @@ class MigrationSmokeTests {
 		assertThat(sourceObservationTableCount).isEqualTo(1);
 		assertThat(metadataTableCount).isEqualTo(1);
 		assertThat(statusHistoryTableCount).isEqualTo(1);
+		assertThat(keyReferenceTableCount).isEqualTo(1);
 		assertThat(publicKeySizeColumnCount).isEqualTo(1);
 	}
 }

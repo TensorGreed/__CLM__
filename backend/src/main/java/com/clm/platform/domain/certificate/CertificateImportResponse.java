@@ -8,15 +8,25 @@ public record CertificateImportResponse(
 	UUID tenantId,
 	boolean imported,
 	CertificateStatus status,
-	String sha256Fingerprint) {
+	String sha256Fingerprint,
+	CertificateKeyReferenceResponse keyReference) {
 
 	static CertificateImportResponse from(ManagedCertificate certificate, CertificateVersion version, boolean imported) {
+		return from(certificate, version, imported, null);
+	}
+
+	static CertificateImportResponse from(
+			ManagedCertificate certificate,
+			CertificateVersion version,
+			boolean imported,
+			CertificateKeyReference keyReference) {
 		return new CertificateImportResponse(
 			certificate.id(),
 			version.id(),
 			certificate.tenantId(),
 			imported,
 			certificate.status(),
-			version.sha256Fingerprint());
+			version.sha256Fingerprint(),
+			CertificateKeyReferenceResponse.from(keyReference));
 	}
 }

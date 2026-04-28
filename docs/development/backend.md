@@ -69,7 +69,7 @@ The default database values match `docker-compose.yml`.
 - Sensitive-action reason capture with audit events.
 - Certificate inventory import, search, and detail APIs.
 - Public PEM certificate parsing with private-key rejection.
-- Disabled private-key import guardrail path with audit and redaction.
+- Guarded private-key import path with RSA/EC match validation, reference-only storage, audit, and redaction.
 - Public key size metadata extraction for certificate versions.
 - Certificate version fingerprint deduplication.
 - Certificate source observation records.

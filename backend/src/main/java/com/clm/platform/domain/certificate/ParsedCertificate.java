@@ -1,6 +1,7 @@
 package com.clm.platform.domain.certificate;
 
 import java.time.Instant;
+import java.security.PublicKey;
 import java.util.List;
 
 public record ParsedCertificate(
@@ -15,6 +16,7 @@ public record ParsedCertificate(
 	String sha1Fingerprint,
 	String publicKeyAlgorithm,
 	Integer publicKeySizeBits,
+	PublicKey publicKey,
 	String signatureAlgorithm,
 	List<String> subjectAlternativeNames,
 	boolean selfSigned,

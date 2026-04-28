@@ -59,6 +59,7 @@ public class CertificatePemParser {
 			fingerprint("SHA-1", leaf),
 			leaf.getPublicKey().getAlgorithm(),
 			publicKeySizeBits(leaf.getPublicKey()),
+			leaf.getPublicKey(),
 			leaf.getSigAlgName(),
 			subjectAlternativeNames(leaf),
 			selfSigned(leaf),

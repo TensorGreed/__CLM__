@@ -26,9 +26,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.clm.platform.api.error.ApiErrorCode;
 import com.clm.platform.api.error.ApiException;
+import com.clm.platform.api.error.ConflictException;
 import com.clm.platform.api.error.ForbiddenException;
 import com.clm.platform.api.error.ResourceNotFoundException;
 import com.clm.platform.api.query.SortDirection;
@@ -50,6 +52,15 @@ public class CertificateInventoryService {
 
 	private static final Pattern SOURCE_TYPE_PATTERN = Pattern.compile("[a-z0-9][a-z0-9._:-]{0,63}");
 
+	private static final Set<String> APPROVED_KEY_REFERENCE_PROVIDERS = Set.of(
+		"aws-kms",
+		"aws-secrets-manager",
+		"azure-key-vault",
+		"external",
+		"gcp-secret-manager",
+		"kubernetes-secret",
+		"vault");
+
 	private final ManagedCertificateRepository certificateRepository;
 
 	private final CertificateVersionRepository versionRepository;
@@ -62,7 +73,11 @@ public class CertificateInventoryService {
 
 	private final CertificateStatusHistoryRepository statusHistoryRepository;
 
+	private final CertificateKeyReferenceRepository keyReferenceRepository;
+
 	private final CertificatePemParser certificatePemParser;
+
+	private final CertificatePrivateKeyValidator privateKeyValidator;
 
 	private final KeyHandlingProperties keyHandlingProperties;
 
@@ -71,6 +86,8 @@ public class CertificateInventoryService {
 	private final AuditEventService auditEventService;
 
 	private final AuditEventRepository auditEventRepository;
+
+	private final TransactionTemplate transactionTemplate;
 
 	private final Clock clock;
 
@@ -81,11 +98,14 @@ public class CertificateInventoryService {
 			CertificateSourceObservationRepository sourceObservationRepository,
 			CertificateMetadataEntryRepository metadataEntryRepository,
 			CertificateStatusHistoryRepository statusHistoryRepository,
+			CertificateKeyReferenceRepository keyReferenceRepository,
 			CertificatePemParser certificatePemParser,
+			CertificatePrivateKeyValidator privateKeyValidator,
 			KeyHandlingProperties keyHandlingProperties,
 			TenancyService tenancyService,
 			AuditEventService auditEventService,
 			AuditEventRepository auditEventRepository,
+			TransactionTemplate transactionTemplate,
 			Clock clock) {
 		this.certificateRepository = certificateRepository;
 		this.versionRepository = versionRepository;
@@ -93,11 +113,14 @@ public class CertificateInventoryService {
 		this.sourceObservationRepository = sourceObservationRepository;
 		this.metadataEntryRepository = metadataEntryRepository;
 		this.statusHistoryRepository = statusHistoryRepository;
+		this.keyReferenceRepository = keyReferenceRepository;
 		this.certificatePemParser = certificatePemParser;
+		this.privateKeyValidator = privateKeyValidator;
 		this.keyHandlingProperties = keyHandlingProperties;
 		this.tenancyService = tenancyService;
 		this.auditEventService = auditEventService;
 		this.auditEventRepository = auditEventRepository;
+		this.transactionTemplate = transactionTemplate;
 		this.clock = clock;
 	}
 
@@ -114,21 +137,26 @@ public class CertificateInventoryService {
 	public CertificateImportResponse importCertificateWithPrivateKey(CertificatePrivateKeyImportRequest request) {
 		tenancyService.getTenant(request.tenantId());
 		ParsedCertificate parsedCertificate = certificatePemParser.parse(request.certificatePem(), request.chainPem());
-		PemBlockSummary privateKey = PemSafetyInspector.requirePrivateKeyMaterial(request.privateKeyPem(), "Private key PEM");
+		PrivateKeyMatchResult keyMatch = validatePrivateKeyMatch(request.tenantId(), parsedCertificate, request.privateKeyPem());
 		if (!keyHandlingProperties.privateKeyImportEnabled()) {
 			String reason = "Private key import is disabled by policy.";
-			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, privateKey, reason);
+			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, keyMatch, null, reason);
 			throw new ForbiddenException(reason);
 		}
 		if (keyHandlingProperties.databasePersistenceEnabled()) {
 			String reason = "Database private key persistence is disabled in this build.";
-			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, privateKey, reason);
+			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, keyMatch, null, reason);
 			throw new ForbiddenException(reason);
 		}
-		String reason = "Private key import storage provider '" + keyHandlingProperties.normalizedStorageProvider()
-			+ "' is not implemented yet for " + privateKey.label() + " material.";
-		appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, privateKey, reason);
-		throw new ApiException(ApiErrorCode.VALIDATION_FAILED, reason);
+		if (!"external-reference".equals(keyHandlingProperties.normalizedStorageProvider())) {
+			String reason = "Private key import storage provider '" + keyHandlingProperties.normalizedStorageProvider()
+				+ "' is not approved for this build.";
+			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, keyMatch, null, reason);
+			throw new ForbiddenException(reason);
+		}
+		validateRequestedStorageProvider(request.keyStorageProvider());
+		NormalizedKeyReference keyReference = normalizeKeyReference(request.keyReference());
+		return transactionTemplate.execute(status -> importCertificateWithKeyReference(request, parsedCertificate, keyMatch, keyReference));
 	}
 
 	@Transactional
@@ -213,6 +241,7 @@ public class CertificateInventoryService {
 			chainEntryRepository.findByCertificateVersionIdOrderByPositionAsc(currentVersion.id()),
 			sourceObservationRepository.findByCertificateIdOrderByLastSeenAtDesc(certificate.id()),
 			metadataEntryRepository.findByCertificateIdOrderByKeyAsc(certificate.id()),
+			keyReferenceRepository.findByCertificateVersionId(currentVersion.id()).orElse(null),
 			statusHistoryRepository.findByCertificateIdOrderByChangedAtDesc(certificate.id()),
 			auditEventRepository.findTop25ByResourceTypeAndResourceIdOrderByOccurredAtDesc(
 				"certificate",
@@ -305,6 +334,81 @@ public class CertificateInventoryService {
 			.stream()
 			.map(CertificateStatusHistoryResponse::from)
 			.toList();
+	}
+
+	private PrivateKeyMatchResult validatePrivateKeyMatch(UUID tenantId, ParsedCertificate parsedCertificate, String privateKeyPem) {
+		try {
+			PrivateKeyMatchResult keyMatch = privateKeyValidator.validateMatches(parsedCertificate.publicKey(), privateKeyPem);
+			appendPrivateKeyValidationAudit(
+				tenantId,
+				parsedCertificate,
+				keyMatch,
+				true,
+				"Private key matches certificate public key.");
+			return keyMatch;
+		}
+		catch (ApiException exception) {
+			appendPrivateKeyValidationAudit(
+				tenantId,
+				parsedCertificate,
+				null,
+				false,
+				exception.getMessage());
+			throw exception;
+		}
+	}
+
+	private CertificateImportResponse importCertificateWithKeyReference(
+			CertificatePrivateKeyImportRequest request,
+			ParsedCertificate parsedCertificate,
+			PrivateKeyMatchResult keyMatch,
+			NormalizedKeyReference keyReference) {
+		CertificateUpsertResult result = versionRepository
+			.findByTenantIdAndSha256Fingerprint(request.tenantId(), parsedCertificate.sha256Fingerprint())
+			.map(existingVersion -> new CertificateUpsertResult(accessibleCertificate(existingVersion.certificateId()), existingVersion, false))
+			.orElseGet(() -> createCertificate(
+				request.tenantId(),
+				normalizedOwner(request.owner()),
+				normalizeTags(request.tags()),
+				parsedCertificate,
+				"Certificate imported with external private key reference."));
+		KeyReferenceUpsertResult keyReferenceResult = upsertKeyReference(
+			result.certificate(),
+			result.version(),
+			keyReference,
+			keyMatch.keyAlgorithm());
+
+		appendAuditEvent(
+			result.certificate().tenantId(),
+			"certificate.key_reference_recorded",
+			result.certificate().id(),
+			"Certificate external key reference recorded after private key match validation.",
+			"{\"providerType\":\"" + keyReferenceResult.keyReference().providerType()
+				+ "\",\"keyAlgorithm\":\"" + keyReferenceResult.keyReference().keyAlgorithm()
+				+ "\",\"createdReference\":" + keyReferenceResult.created()
+				+ ",\"importedCertificate\":" + result.created() + "}");
+		return CertificateImportResponse.from(result.certificate(), result.version(), result.created(), keyReferenceResult.keyReference());
+	}
+
+	private KeyReferenceUpsertResult upsertKeyReference(
+			ManagedCertificate certificate,
+			CertificateVersion version,
+			NormalizedKeyReference keyReference,
+			String keyAlgorithm) {
+		return keyReferenceRepository.findByCertificateVersionId(version.id())
+			.map(existing -> {
+				if (!existing.sameReference(keyReference, keyAlgorithm)) {
+					throw new ConflictException("Certificate version already has a different external key reference.");
+				}
+				return new KeyReferenceUpsertResult(existing, false);
+			})
+			.orElseGet(() -> new KeyReferenceUpsertResult(keyReferenceRepository.save(CertificateKeyReference.create(
+				certificate,
+				version,
+				keyReference,
+				keyAlgorithm,
+				clock.instant(),
+				CurrentActor.actorId())), true));
 	}
 
 	private CertificateImportResponse duplicateImportResponse(UUID tenantId, CertificateVersion existingVersion) {
@@ -586,6 +690,47 @@ public class CertificateInventoryService {
 		return normalized;
 	}
 
+	private static void validateRequestedStorageProvider(String requestedStorageProvider) {
+		if (requestedStorageProvider == null || requestedStorageProvider.isBlank()) {
+			return;
+		}
+		String normalized = requestedStorageProvider.trim().toLowerCase(Locale.ROOT);
+		if (!"external-reference".equals(normalized)) {
+			throw new ApiException(
+				ApiErrorCode.VALIDATION_FAILED,
+				"keyStorageProvider must be external-reference when private key persistence is disabled.");
+		}
+	}
+
+	private static NormalizedKeyReference normalizeKeyReference(CertificateKeyReferenceRequest request) {
+		if (request == null) {
+			throw new ApiException(ApiErrorCode.VALIDATION_FAILED, "keyReference is required for private key import.");
+		}
+		String providerType = normalizeKeyReferenceProvider(request.providerType());
+		String referenceUri = normalizedRequired(request.referenceUri(), "Key reference URI");
+		if (referenceUri.length() > 512) {
+			throw new ApiException(ApiErrorCode.VALIDATION_FAILED, "Key reference URI must be at most 512 characters.");
+		}
+		if (PemSafetyInspector.containsPrivateKeyMaterial(referenceUri)) {
+			throw new ApiException(ApiErrorCode.VALIDATION_FAILED, "Key reference URI must not contain private key material.");
+		}
+		String keyAlias = normalizedOptional(request.keyAlias());
+		return new NormalizedKeyReference(providerType, referenceUri, keyAlias);
+	}
+
+	private static String normalizeKeyReferenceProvider(String providerType) {
+		String normalized = providerType == null ? "" : providerType.trim().toLowerCase(Locale.ROOT);
+		if (!SOURCE_TYPE_PATTERN.matcher(normalized).matches()) {
+			throw new ApiException(
+				ApiErrorCode.VALIDATION_FAILED,
+				"Key reference provider type must be 1-64 lowercase letters, numbers, dots, underscores, colons, or dashes.");
+		}
+		if (!APPROVED_KEY_REFERENCE_PROVIDERS.contains(normalized)) {
+			throw new ApiException(ApiErrorCode.VALIDATION_FAILED, "Key reference provider type is not approved.");
+		}
+		return normalized;
+	}
+
 	private static Set<String> normalizeTags(Set<String> tags) {
 		if (tags == null || tags.isEmpty()) {
 			return Set.of();
@@ -734,7 +879,8 @@ public class CertificateInventoryService {
 	private void appendPrivateKeyImportRejectedAudit(
 			UUID tenantId,
 			ParsedCertificate parsedCertificate,
-			PemBlockSummary privateKey,
+			PrivateKeyMatchResult keyMatch,
+			NormalizedKeyReference keyReference,
 			String reason) {
 		auditEventService.append(new AuditEventCommand(
 			CurrentActor.actorType(),
@@ -748,13 +894,49 @@ public class CertificateInventoryService {
 			reason,
 			null,
 			"{\"certificateSha256Fingerprint\":\"" + parsedCertificate.sha256Fingerprint()
-				+ "\",\"keyBlockLabel\":\"" + privateKey.label()
-				+ "\",\"storageProvider\":\"" + keyHandlingProperties.normalizedStorageProvider() + "\"}"));
+				+ "\",\"keyAlgorithm\":\"" + keyMatch.keyAlgorithm()
+				+ "\",\"keyBlockLabel\":\"" + keyMatch.keyBlockLabel()
+				+ "\",\"storageProvider\":\"" + keyHandlingProperties.normalizedStorageProvider() + "\""
+				+ keyReferenceMetadata(keyReference) + "}"));
+	}
+
+	private void appendPrivateKeyValidationAudit(
+			UUID tenantId,
+			ParsedCertificate parsedCertificate,
+			PrivateKeyMatchResult keyMatch,
+			boolean matched,
+			String reason) {
+		auditEventService.append(new AuditEventCommand(
+			CurrentActor.actorType(),
+			CurrentActor.actorId(),
+			tenantId.toString(),
+			matched ? "certificate.private_key_match_validated" : "certificate.private_key_match_failed",
+			"certificate_private_key_import",
+			tenantId.toString(),
+			matched ? AuditDecision.ALLOW : AuditDecision.DENY,
+			matched ? AuditStatus.SUCCESS : AuditStatus.FAILURE,
+			reason,
+			null,
+			"{\"certificateSha256Fingerprint\":\"" + parsedCertificate.sha256Fingerprint()
+				+ "\",\"matched\":" + matched
+				+ (keyMatch == null ? "" : ",\"keyAlgorithm\":\"" + keyMatch.keyAlgorithm()
+					+ "\",\"keyBlockLabel\":\"" + keyMatch.keyBlockLabel() + "\"")
+				+ "}"));
+	}
+
+	private static String keyReferenceMetadata(NormalizedKeyReference keyReference) {
+		if (keyReference == null) {
+			return "";
+		}
+		return ",\"keyReferenceProvider\":\"" + keyReference.providerType() + "\"";
 	}
 
 	private record CertificateUpsertResult(ManagedCertificate certificate, CertificateVersion version, boolean created) {
 	}
 
 	private record ObservationUpsertResult(CertificateSourceObservation observation, boolean created) {
+	}
+
+	private record KeyReferenceUpsertResult(CertificateKeyReference keyReference, boolean created) {
 	}
 }

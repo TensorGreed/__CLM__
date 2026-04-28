@@ -5,7 +5,7 @@ This repository is being shaped into an enterprise certificate lifecycle managem
 ## Implementation Status
 
 R1-E01 through R1-E05 are implemented as the secure platform foundation, backend certificate inventory core, and first operational UI.
-The first R2-E01 backend guardrail slice is also in place:
+The first R2-E01 backend key-handling slices are also in place:
 
 - Spring Boot backend skeleton in [backend](backend).
 - React TypeScript frontend shell in [frontend](frontend).
@@ -16,9 +16,9 @@ The first R2-E01 backend guardrail slice is also in place:
 - First-run bootstrap admin flow, local Basic auth, optional OIDC login, tenant and organization APIs, built-in RBAC, sensitive-action reason capture, and service account API tokens.
 - Certificate inventory backend APIs for PEM-only certificate import, parsed certificate/version metadata, source observations, fingerprint deduplication, tenant-scoped search, detail retrieval, tags, typed metadata, status history, and audit events.
 - Role-aware frontend shell, global search, settings pages, certificate inventory table, filters, saved columns, pagination, bulk selection, and certificate detail pages for versions, chain, sources, metadata, status history, automation placeholders, and audit timeline.
-- Public certificate import remains private-key rejecting, a future private-key import endpoint is explicitly disabled by policy, public key size metadata is parsed from certificates, and private key PEM blocks are redacted from diagnostic text.
+- Public certificate import remains private-key rejecting, public key size metadata is parsed from certificates, private key PEM blocks are redacted from diagnostic text, and the guarded private-key import path can validate RSA/EC key matches before storing only approved external key references when explicitly enabled.
 
-Private key persistence, key export, issuance, renewal, destinations, plugins, MCP, production user/group provisioning, and cross-resource search beyond certificates are not implemented yet.
+Raw private key persistence, real secret storage providers, key export, issuance, renewal, destinations, plugins, MCP, production user/group provisioning, and cross-resource search beyond certificates are not implemented yet.
 
 Start with these root planning files:
 

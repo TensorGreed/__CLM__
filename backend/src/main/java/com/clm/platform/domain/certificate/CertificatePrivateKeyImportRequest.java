@@ -3,6 +3,7 @@ package com.clm.platform.domain.certificate;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,7 @@ public record CertificatePrivateKeyImportRequest(
 	@NotBlank @Size(max = 20_000) String certificatePem,
 	@Size(max = 100_000) String chainPem,
 	@NotBlank @Size(max = 50_000) String privateKeyPem,
+	@Valid CertificateKeyReferenceRequest keyReference,
 	@Size(max = 64) String keyStorageProvider,
 	@Size(max = 256) String owner,
 	boolean orphaned,

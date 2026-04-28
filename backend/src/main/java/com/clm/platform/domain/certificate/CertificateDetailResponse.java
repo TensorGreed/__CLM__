@@ -25,6 +25,7 @@ public record CertificateDetailResponse(
 	Set<String> subjectAlternativeNames,
 	Set<String> tags,
 	Map<String, CertificateMetadataValueResponse> metadata,
+	CertificateKeyReferenceResponse keyReference,
 	CertificateVersionResponse currentVersion,
 	List<CertificateVersionResponse> versions,
 	List<CertificateChainEntryResponse> chain,
@@ -39,6 +40,7 @@ public record CertificateDetailResponse(
 			List<CertificateChainEntry> chainEntries,
 			List<CertificateSourceObservation> sourceObservations,
 			List<CertificateMetadataEntry> metadataEntries,
+			CertificateKeyReference keyReference,
 			List<CertificateStatusHistory> statusHistory,
 			List<AuditEvent> auditEvents) {
 		return new CertificateDetailResponse(
@@ -62,6 +64,7 @@ public record CertificateDetailResponse(
 				CertificateMetadataValueResponse::from,
 				(left, right) -> right,
 				java.util.TreeMap::new)),
+			CertificateKeyReferenceResponse.from(keyReference),
 			CertificateVersionResponse.from(currentVersion),
 			versions.stream().map(CertificateVersionResponse::from).toList(),
 			chainEntries.stream().map(CertificateChainEntryResponse::from).toList(),

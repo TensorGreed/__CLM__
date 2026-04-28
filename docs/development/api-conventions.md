@@ -8,7 +8,7 @@ All public backend APIs live under `/api/v1`.
 - `GET /api/v1/bootstrap/status` - first-run bootstrap status.
 - `POST /api/v1/bootstrap/admin` - one-time bootstrap administrator creation.
 - `POST /api/v1/certificates/import` - import a public PEM leaf certificate and optional public PEM chain.
-- `POST /api/v1/certificates/import-with-private-key` - disabled future key import path with guardrail validation.
+- `POST /api/v1/certificates/import-with-private-key` - guarded private-key match validation and reference-only import path.
 - `POST /api/v1/certificates/source-observations` - record a public certificate observation from a source connector or discovery worker.
 - `GET /api/v1/certificates` - tenant-scoped certificate inventory list.
 - `GET /api/v1/certificates/{certificateId}` - certificate detail with versions, chain, and audit timeline.
@@ -27,7 +27,7 @@ All public backend APIs live under `/api/v1`.
 - `GET /v3/api-docs` - generated OpenAPI JSON.
 - `GET /swagger-ui` - generated Swagger UI.
 
-The public certificate import path rejects private keys. The private-key import path is present only as a disabled R2-E01 guardrail contract and stores no key material.
+The public certificate import path rejects private keys. The private-key import path is disabled by default, validates RSA/EC key matches before policy decisions, and stores no raw key material. When explicitly enabled for `external-reference`, it records only an approved external key reference for the certificate version.
 
 ## Authentication
 

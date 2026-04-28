@@ -244,6 +244,20 @@ export interface CertificateStatusHistoryResponse {
   changedAt: string
 }
 
+export interface CertificateKeyReferenceResponse {
+  id: string
+  certificateId: string
+  certificateVersionId: string
+  tenantId: string
+  providerType: string
+  referenceUri: string
+  keyAlias: string | null
+  keyAlgorithm: string
+  keyMatchVerified: boolean
+  createdAt: string
+  createdBy: string | null
+}
+
 export interface CertificateAuditEventResponse {
   id: string
   occurredAt: string
@@ -262,6 +276,7 @@ export interface CertificateDetailResponse
   currentVersion: CertificateVersionResponse
   versions: CertificateVersionResponse[]
   chain: CertificateChainEntryResponse[]
+  keyReference: CertificateKeyReferenceResponse | null
   sourceObservations: CertificateSourceObservationResponse[]
   metadata: Record<string, CertificateMetadataValueResponse>
   statusHistory: CertificateStatusHistoryResponse[]
