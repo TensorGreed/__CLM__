@@ -21,6 +21,7 @@ class CertificatePemParserTests {
 		assertThat(parsed.commonName()).isEqualTo("inventory.example.test");
 		assertThat(parsed.issuerDn()).contains("CN=inventory.example.test");
 		assertThat(parsed.publicKeyAlgorithm()).isEqualTo("RSA");
+		assertThat(parsed.publicKeySizeBits()).isGreaterThanOrEqualTo(2048);
 		assertThat(parsed.signatureAlgorithm()).contains("RSA");
 		assertThat(parsed.sha256Fingerprint()).hasSize(95);
 		assertThat(parsed.subjectAlternativeNames())
@@ -39,15 +40,13 @@ class CertificatePemParserTests {
 
 	@Test
 	void rejectsPrivateKeyMaterial() {
-		String privateKey = """
-			-----BEGIN PRIVATE KEY-----
-			abc
-			-----END PRIVATE KEY-----
-			""";
-
-		assertThatThrownBy(() -> parser.parse(CertificatePemFixtures.INVENTORY_CERTIFICATE + privateKey, null))
+		assertThatThrownBy(() -> parser.parse(CertificatePemFixtures.INVENTORY_CERTIFICATE + CertificatePemFixtures.PRIVATE_KEY, null))
 			.isInstanceOf(ApiException.class)
-			.hasMessageContaining("Private key material");
+			.hasMessageContaining("Certificate PEM must not contain private key material");
+
+		assertThatThrownBy(() -> parser.parse(CertificatePemFixtures.INVENTORY_CERTIFICATE, CertificatePemFixtures.PRIVATE_KEY))
+			.isInstanceOf(ApiException.class)
+			.hasMessageContaining("Chain PEM must not contain private key material");
 	}
 
 	private static CertificatePemParser newParser() {

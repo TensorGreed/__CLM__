@@ -1941,7 +1941,7 @@ function VersionsSection({
               <td>
                 {formatDate(version.validFrom)} to {formatDate(version.validTo)}
               </td>
-              <td>{version.publicKeyAlgorithm}</td>
+              <td>{keyLabel(version)}</td>
               <td>{version.signatureAlgorithm}</td>
               <td className="mono">{truncateMiddle(version.sha256Fingerprint, 34)}</td>
             </tr>
@@ -2385,6 +2385,12 @@ function metadataPairs(metadata: Record<string, string>) {
   return pairs.length === 0
     ? 'None'
     : pairs.map(([key, value]) => `${key}=${value}`).join(', ')
+}
+
+function keyLabel(version: CertificateVersionResponse) {
+  return version.publicKeySizeBits
+    ? `${version.publicKeyAlgorithm} ${version.publicKeySizeBits} bit`
+    : version.publicKeyAlgorithm
 }
 
 function loadColumns(key: string) {

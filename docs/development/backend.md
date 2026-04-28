@@ -46,6 +46,9 @@ Local runtime configuration uses:
 - `PORT`
 - `CLM_OIDC_ENABLED`
 - `CLM_OIDC_GROUP_CLAIM`
+- `CLM_PRIVATE_KEY_IMPORT_ENABLED`
+- `CLM_KEY_STORAGE_PROVIDER`
+- `CLM_PRIVATE_KEY_DATABASE_PERSISTENCE_ENABLED`
 
 The default database values match `docker-compose.yml`.
 
@@ -66,6 +69,8 @@ The default database values match `docker-compose.yml`.
 - Sensitive-action reason capture with audit events.
 - Certificate inventory import, search, and detail APIs.
 - Public PEM certificate parsing with private-key rejection.
+- Disabled private-key import guardrail path with audit and redaction.
+- Public key size metadata extraction for certificate versions.
 - Certificate version fingerprint deduplication.
 - Certificate source observation records.
 - Certificate tag, typed metadata, and status history APIs.

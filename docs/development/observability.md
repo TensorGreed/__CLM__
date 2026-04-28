@@ -27,4 +27,4 @@ Every request-handling log line can include:
 
 Do not log secrets, private keys, bearer tokens, connector credentials, or decrypted secret values.
 
-The API error handler and foundation services redact assignment-style sensitive values before returning or persisting user-facing diagnostic text.
+The API error handler and foundation services redact assignment-style sensitive values and full private key PEM blocks before returning or persisting user-facing diagnostic text.

@@ -14,6 +14,7 @@ public record ParsedCertificate(
 	String sha256Fingerprint,
 	String sha1Fingerprint,
 	String publicKeyAlgorithm,
+	Integer publicKeySizeBits,
 	String signatureAlgorithm,
 	List<String> subjectAlternativeNames,
 	boolean selfSigned,

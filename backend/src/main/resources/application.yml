@@ -56,5 +56,9 @@ clm:
     oidc:
       enabled: ${CLM_OIDC_ENABLED:false}
       group-claim: ${CLM_OIDC_GROUP_CLAIM:groups}
+  key-handling:
+    private-key-import-enabled: ${CLM_PRIVATE_KEY_IMPORT_ENABLED:false}
+    storage-provider: ${CLM_KEY_STORAGE_PROVIDER:disabled}
+    database-persistence-enabled: ${CLM_PRIVATE_KEY_DATABASE_PERSISTENCE_ENABLED:false}
   logging:
     correlation-header: X-Correlation-ID

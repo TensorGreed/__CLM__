@@ -37,6 +37,7 @@ const certificateDetail: CertificateDetailResponse = {
     sha256Fingerprint: certificateSummary.sha256Fingerprint,
     sha1Fingerprint: '11:22:33:44:55',
     publicKeyAlgorithm: 'RSA',
+    publicKeySizeBits: 2048,
     signatureAlgorithm: 'SHA256withRSA',
     subjectAlternativeNames: certificateSummary.subjectAlternativeNames,
     chainLength: 2,
@@ -56,6 +57,7 @@ const certificateDetail: CertificateDetailResponse = {
       sha256Fingerprint: certificateSummary.sha256Fingerprint,
       sha1Fingerprint: '11:22:33:44:55',
       publicKeyAlgorithm: 'RSA',
+      publicKeySizeBits: 2048,
       signatureAlgorithm: 'SHA256withRSA',
       subjectAlternativeNames: certificateSummary.subjectAlternativeNames,
       chainLength: 2,
@@ -187,6 +189,9 @@ describe('App', () => {
       await screen.findByRole('heading', { name: /inventory.example.test/i }),
     ).toBeInTheDocument()
     expect(screen.getByText(/SHA-256/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /versions/i }))
+    expect(screen.getByText(/RSA 2048 bit/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /sources/i }))
     expect(screen.getByText(/aws-acm/i)).toBeInTheDocument()

@@ -35,6 +35,13 @@ public class CertificateController {
 		return certificateInventoryService.importCertificate(request);
 	}
 
+	@PostMapping(ApiPaths.API_V1 + "/certificates/import-with-private-key")
+	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_IMPORT')")
+	CertificateImportResponse importCertificateWithPrivateKey(
+			@Valid @RequestBody CertificatePrivateKeyImportRequest request) {
+		return certificateInventoryService.importCertificateWithPrivateKey(request);
+	}
+
 	@PostMapping(ApiPaths.API_V1 + "/certificates/source-observations")
 	@PreAuthorize("hasAuthority('PERMISSION_CERTIFICATE_IMPORT')")
 	CertificateObservationResponse observeCertificate(@Valid @RequestBody CertificateObservationRequest request) {

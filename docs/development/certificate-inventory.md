@@ -1,6 +1,6 @@
 # Certificate Inventory
 
-R1-E04 starts the backend certificate inventory system of record.
+R1-E04 starts the backend certificate inventory system of record. R2-E01 adds the first key-handling guardrails without enabling private key persistence.
 
 ## Current Scope
 
@@ -17,15 +17,17 @@ Implemented:
 - Typed custom metadata.
 - Explicit status history.
 - Inventory audit events.
+- Public key size metadata for RSA, EC, and DSA public keys when derivable from the certificate.
+- A disabled future private-key import endpoint with validation, audit, and redaction guardrails.
 
 Not implemented yet:
 
-- Private key import or key storage.
+- Private key persistence, approved key storage, key-match validation, or key export.
 - Issuance, renewal, revocation, or deployment.
 
 ## Import API
 
-`POST /api/v1/certificates/import` requires `PERMISSION_CERTIFICATE_IMPORT`.
+`POST /api/v1/certificates/import` requires `PERMISSION_CERTIFICATE_IMPORT` and is public-certificate-only.
 
 The request accepts:
 
@@ -37,6 +39,8 @@ The request accepts:
 - `tags`
 
 The API rejects malformed PEM and any payload containing private key PEM blocks. The backend stores the public certificate PEM and parsed public metadata only.
+
+`POST /api/v1/certificates/import-with-private-key` is reserved for future legacy key onboarding. In the current guardrail slice it validates public certificate fields and the presence of a private key PEM block, emits an audit event for authorized policy rejections, returns `FORBIDDEN` by default, and stores no key material.
 
 ## Source Observations
 
@@ -69,6 +73,7 @@ The parser extracts:
 - Subject alternative names.
 - SHA-256 and SHA-1 fingerprints.
 - Public key algorithm.
+- Public key size in bits when safely derivable from public certificate metadata.
 - Signature algorithm.
 - Chain length and self-signed flag.
 - Public chain entry metadata.
@@ -157,4 +162,4 @@ R1-E05 adds the first frontend inventory workflow:
 - Certificate detail sections for summary, versions, chain, source observations, metadata, status history, audit events, and automation placeholders.
 - Global search for certificate results.
 
-Later inventory work includes private key handling, issuance, renewal, destinations, plugins, MCP, and non-certificate search result types.
+Later inventory work includes real private key storage providers, key-match validation, issuance, renewal, destinations, plugins, MCP, and non-certificate search result types.

@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.clm.platform.api.error.ApiErrorCode;
 import com.clm.platform.api.error.ApiException;
+import com.clm.platform.api.error.ForbiddenException;
 import com.clm.platform.api.error.ResourceNotFoundException;
 import com.clm.platform.api.query.SortDirection;
 import com.clm.platform.api.query.SortSpec;
@@ -63,6 +64,8 @@ public class CertificateInventoryService {
 
 	private final CertificatePemParser certificatePemParser;
 
+	private final KeyHandlingProperties keyHandlingProperties;
+
 	private final TenancyService tenancyService;
 
 	private final AuditEventService auditEventService;
@@ -79,6 +82,7 @@ public class CertificateInventoryService {
 			CertificateMetadataEntryRepository metadataEntryRepository,
 			CertificateStatusHistoryRepository statusHistoryRepository,
 			CertificatePemParser certificatePemParser,
+			KeyHandlingProperties keyHandlingProperties,
 			TenancyService tenancyService,
 			AuditEventService auditEventService,
 			AuditEventRepository auditEventRepository,
@@ -90,6 +94,7 @@ public class CertificateInventoryService {
 		this.metadataEntryRepository = metadataEntryRepository;
 		this.statusHistoryRepository = statusHistoryRepository;
 		this.certificatePemParser = certificatePemParser;
+		this.keyHandlingProperties = keyHandlingProperties;
 		this.tenancyService = tenancyService;
 		this.auditEventService = auditEventService;
 		this.auditEventRepository = auditEventRepository;
@@ -104,6 +109,26 @@ public class CertificateInventoryService {
 		return versionRepository.findByTenantIdAndSha256Fingerprint(request.tenantId(), parsedCertificate.sha256Fingerprint())
 			.map(existingVersion -> duplicateImportResponse(request.tenantId(), existingVersion))
 			.orElseGet(() -> createImportedCertificate(request, parsedCertificate));
+	}
+
+	public CertificateImportResponse importCertificateWithPrivateKey(CertificatePrivateKeyImportRequest request) {
+		tenancyService.getTenant(request.tenantId());
+		ParsedCertificate parsedCertificate = certificatePemParser.parse(request.certificatePem(), request.chainPem());
+		PemBlockSummary privateKey = PemSafetyInspector.requirePrivateKeyMaterial(request.privateKeyPem(), "Private key PEM");
+		if (!keyHandlingProperties.privateKeyImportEnabled()) {
+			String reason = "Private key import is disabled by policy.";
+			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, privateKey, reason);
+			throw new ForbiddenException(reason);
+		}
+		if (keyHandlingProperties.databasePersistenceEnabled()) {
+			String reason = "Database private key persistence is disabled in this build.";
+			appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, privateKey, reason);
+			throw new ForbiddenException(reason);
+		}
+		String reason = "Private key import storage provider '" + keyHandlingProperties.normalizedStorageProvider()
+			+ "' is not implemented yet for " + privateKey.label() + " material.";
+		appendPrivateKeyImportRejectedAudit(request.tenantId(), parsedCertificate, privateKey, reason);
+		throw new ApiException(ApiErrorCode.VALIDATION_FAILED, reason);
 	}
 
 	@Transactional
@@ -704,6 +729,27 @@ public class CertificateInventoryService {
 			reason,
 			null,
 			metadata));
+	}
+
+	private void appendPrivateKeyImportRejectedAudit(
+			UUID tenantId,
+			ParsedCertificate parsedCertificate,
+			PemBlockSummary privateKey,
+			String reason) {
+		auditEventService.append(new AuditEventCommand(
+			CurrentActor.actorType(),
+			CurrentActor.actorId(),
+			tenantId.toString(),
+			"certificate.private_key_import_rejected",
+			"certificate_private_key_import",
+			tenantId.toString(),
+			AuditDecision.DENY,
+			AuditStatus.FAILURE,
+			reason,
+			null,
+			"{\"certificateSha256Fingerprint\":\"" + parsedCertificate.sha256Fingerprint()
+				+ "\",\"keyBlockLabel\":\"" + privateKey.label()
+				+ "\",\"storageProvider\":\"" + keyHandlingProperties.normalizedStorageProvider() + "\"}"));
 	}
 
 	private record CertificateUpsertResult(ManagedCertificate certificate, CertificateVersion version, boolean created) {

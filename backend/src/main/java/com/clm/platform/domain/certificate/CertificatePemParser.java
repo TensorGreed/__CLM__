@@ -6,15 +6,18 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.DSAKey;
+import java.security.interfaces.ECKey;
+import java.security.interfaces.RSAKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
@@ -27,10 +30,6 @@ import com.clm.platform.api.error.ApiException;
 @Service
 public class CertificatePemParser {
 
-	private static final Pattern PRIVATE_KEY_PATTERN = Pattern.compile(
-		"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----",
-		Pattern.CASE_INSENSITIVE);
-
 	private final CertificateFactory certificateFactory;
 
 	public CertificatePemParser() throws CertificateException {
@@ -38,8 +37,8 @@ public class CertificatePemParser {
 	}
 
 	public ParsedCertificate parse(String certificatePem, String chainPem) {
-		rejectPrivateKeyMaterial(certificatePem);
-		rejectPrivateKeyMaterial(chainPem);
+		PemSafetyInspector.rejectPrivateKeyMaterial(certificatePem, "Certificate PEM");
+		PemSafetyInspector.rejectPrivateKeyMaterial(chainPem, "Chain PEM");
 
 		List<X509Certificate> leafCertificates = readCertificates(certificatePem, "Certificate PEM");
 		if (leafCertificates.size() != 1) {
@@ -59,6 +58,7 @@ public class CertificatePemParser {
 			fingerprint("SHA-256", leaf),
 			fingerprint("SHA-1", leaf),
 			leaf.getPublicKey().getAlgorithm(),
+			publicKeySizeBits(leaf.getPublicKey()),
 			leaf.getSigAlgName(),
 			subjectAlternativeNames(leaf),
 			selfSigned(leaf),
@@ -102,14 +102,21 @@ public class CertificatePemParser {
 		}
 	}
 
-	private static void rejectPrivateKeyMaterial(String pem) {
-		if (pem != null && PRIVATE_KEY_PATTERN.matcher(pem).find()) {
-			throw validation("Private key material is not accepted by certificate inventory import.");
-		}
-	}
-
 	private static String normalizePem(String pem) {
 		return pem.trim() + "\n";
+	}
+
+	private static Integer publicKeySizeBits(PublicKey publicKey) {
+		if (publicKey instanceof RSAKey rsaKey) {
+			return rsaKey.getModulus().bitLength();
+		}
+		if (publicKey instanceof ECKey ecKey && ecKey.getParams() != null) {
+			return ecKey.getParams().getCurve().getField().getFieldSize();
+		}
+		if (publicKey instanceof DSAKey dsaKey && dsaKey.getParams() != null) {
+			return dsaKey.getParams().getP().bitLength();
+		}
+		return null;
 	}
 
 	private static String distinguishedName(javax.security.auth.x500.X500Principal principal) {

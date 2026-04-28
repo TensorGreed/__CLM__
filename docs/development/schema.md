@@ -35,7 +35,7 @@ The migration includes indexes for tenant joins, role lookups, service account l
 
 `certificates` is the tenant-scoped system-of-record row. `certificate_versions` is append-oriented and deduplicated by tenant plus SHA-256 fingerprint. `certificate_chain_entries` stores parsed public chain metadata for imported versions. `certificate_tags` stores normalized inventory tags for filtering.
 
-The migration adds indexes for tenant/status, owner, issuer, expiry, current version lookup, version history lookup, chain lookup, and tag lookup. The schema intentionally does not store private key material in R1-E04.
+The migration adds indexes for tenant/status, owner, issuer, expiry, current version lookup, version history lookup, chain lookup, and tag lookup. The schema intentionally does not store private key material.
 
 ## Certificate Inventory Management Migration
 
@@ -50,6 +50,14 @@ Source observations record which connector, discovery source, or future automati
 Metadata entries store typed custom metadata values with one row per certificate and metadata key. Status history stores explicit transitions, actor identifiers, reasons, and timestamps.
 
 The migration adds indexes for source lookup, certificate observation lookup, metadata key lookup, and status-history timelines.
+
+## Certificate Key Guardrails Migration
+
+`V5__certificate_key_guardrails.sql` adds:
+
+- `certificate_versions.public_key_size_bits`
+
+This stores safely derived public key size metadata only. It does not add private key, secret, credential, or external secret-reference storage.
 
 ## Test Profile
 

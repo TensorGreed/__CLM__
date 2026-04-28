@@ -4,7 +4,8 @@ This repository is being shaped into an enterprise certificate lifecycle managem
 
 ## Implementation Status
 
-R1-E01 through R1-E05 are implemented as the secure platform foundation, backend certificate inventory core, and first operational UI:
+R1-E01 through R1-E05 are implemented as the secure platform foundation, backend certificate inventory core, and first operational UI.
+The first R2-E01 backend guardrail slice is also in place:
 
 - Spring Boot backend skeleton in [backend](backend).
 - React TypeScript frontend shell in [frontend](frontend).
@@ -15,8 +16,9 @@ R1-E01 through R1-E05 are implemented as the secure platform foundation, backend
 - First-run bootstrap admin flow, local Basic auth, optional OIDC login, tenant and organization APIs, built-in RBAC, sensitive-action reason capture, and service account API tokens.
 - Certificate inventory backend APIs for PEM-only certificate import, parsed certificate/version metadata, source observations, fingerprint deduplication, tenant-scoped search, detail retrieval, tags, typed metadata, status history, and audit events.
 - Role-aware frontend shell, global search, settings pages, certificate inventory table, filters, saved columns, pagination, bulk selection, and certificate detail pages for versions, chain, sources, metadata, status history, automation placeholders, and audit timeline.
+- Public certificate import remains private-key rejecting, a future private-key import endpoint is explicitly disabled by policy, public key size metadata is parsed from certificates, and private key PEM blocks are redacted from diagnostic text.
 
-Certificate private key handling, issuance, renewal, destinations, plugins, MCP, production user/group provisioning, and cross-resource search beyond certificates are not implemented yet.
+Private key persistence, key export, issuance, renewal, destinations, plugins, MCP, production user/group provisioning, and cross-resource search beyond certificates are not implemented yet.
 
 Start with these root planning files:
 
@@ -88,6 +90,7 @@ npm run docs:lint
 - [Identity, tenancy, and RBAC](docs/development/identity-rbac.md)
 - [Service accounts and API tokens](docs/development/service-accounts.md)
 - [Certificate inventory](docs/development/certificate-inventory.md)
+- [Key handling guardrails](docs/development/key-handling.md)
 - [Search](docs/development/search.md)
 - [Schema and migrations](docs/development/schema.md)
 - [Audit foundation](docs/development/audit.md)

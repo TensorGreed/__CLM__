@@ -38,7 +38,7 @@ Default definition of done for every story:
 
 ## Current Status
 
-Last updated: 2026-04-26.
+Last updated: 2026-04-27.
 
 | Epic | Status | Completed Scope | Validation | Notes |
 | --- | --- | --- | --- | --- |
@@ -48,6 +48,7 @@ Last updated: 2026-04-26.
 | R1-E03: Identity, Tenancy, And RBAC | Done | First-run bootstrap admin, local Basic auth, optional OIDC login with group-role mapping, tenant/org APIs with scope checks, built-in roles/permissions, sensitive-action reason capture, service accounts, and scoped API tokens. | Backend tests, docs lint, Compose config, Compose rebuild/startup, API health, API root, bootstrap status, OpenAPI JSON, protected API 401, and UI probe passed. | No certificate inventory, user-management UI, SCIM, SAML, ABAC, plugins, or MCP were added. |
 | R1-E04: Certificate Inventory Core | Done | Backend and frontend coverage for R1-E04-S01 through R1-E04-S06: PEM-only certificate import, certificate/version records, parsed metadata, fingerprint deduplication, source observations, tenant-scoped search/detail APIs, editable tags, typed custom metadata, status history, RBAC, audit events, and inventory/detail UI. | Backend tests, migration tests, frontend tests, docs lint, Compose config, Compose rebuild/startup, API health, API root, OpenAPI JSON, protected certificate API 401, new OpenAPI path checks, and UI probes passed. | Private keys, issuance, renewal, destinations, plugins, and MCP remain out of scope for R1. |
 | R1-E05: Frontend Operational Shell | Done | R1-E05-S01 through R1-E05-S05: role-aware shell, global search, tenant selector, user/access menu, route guards, inventory table, filters, sorting, pagination, saved columns, bulk selection, certificate detail sections, settings pages for tenants, organizations, users/groups identity mapping, roles, service accounts, and API tokens. | Frontend lint, tests, build, backend tests, docs lint, Compose config, Compose startup, API health, API root, OpenAPI JSON, protected APIs, search API, Vite proxy, UI root, UI inventory route, UI search route, and UI settings route probes passed. | R1 search returns certificate results; endpoint, job, integration, destination, source, and policy result types arrive with their later resource epics. |
+| R2-E01: Certificate Import And Key Handling | In Progress | First backend-first guardrail slice: public certificate import remains private-key rejecting, a disabled future private-key import endpoint validates inputs and policy, key-handling config placeholders are present, public key size metadata is parsed, authorized policy rejections are audited, and PEM/key redaction tests are covered. | Backend tests, frontend lint/tests/build, docs lint, Compose config, Compose rebuild/startup, API health, API root, OpenAPI JSON, protected certificate APIs, private-key import guardrail API, and UI probes passed. | Real private key persistence, key-match validation, approved secret providers, bulk import, export controls, deeper chain validation, and external secret references remain. |
 
 ## Epic R0-E01: Product And Architecture Foundation
 
@@ -373,8 +374,8 @@ These stories should be pulled into every relevant epic, not implemented as afte
 
 Continue with this sequence:
 
-1. Start R2-E01 with certificate import and key-handling design guardrails before accepting any private key material.
-2. Implement public/private key validation, storage policy placeholders, and explicit rejection paths before adding issuance or renewal.
-3. Keep destinations, plugins, and MCP deferred until key handling and certificate import workflows are secure.
+1. Continue R2-E01-S01 with real key-match validation and an approved key reference model before enabling private-key import.
+2. Add an internal key storage provider abstraction that supports external secret references first, with database private key persistence still disabled.
+3. Then implement R2-E01-S02 bulk import dry-run and validation reports on top of the same public/private-key validation services.
 
-This keeps the first private-key slice narrow enough to prove parsing, policy, storage boundaries, audit, and redaction before issuance, destinations, and automation depend on it.
+This keeps private-key onboarding blocked until storage policy, provider boundaries, key matching, audit, and redaction are proven end to end.

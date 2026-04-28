@@ -22,6 +22,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
+import com.clm.platform.domain.audit.AuditDecision;
+import com.clm.platform.domain.audit.AuditEventRepository;
+import com.clm.platform.domain.audit.AuditStatus;
 import com.clm.platform.domain.identity.BootstrapAdminResponse;
 import com.clm.platform.domain.identity.UserAccount;
 import com.clm.platform.domain.identity.UserAccountRepository;
@@ -73,6 +76,9 @@ class CertificateInventoryIntegrationTests {
 	private CertificateStatusHistoryRepository statusHistoryRepository;
 
 	@Autowired
+	private AuditEventRepository auditEventRepository;
+
+	@Autowired
 	private UserAccountRepository userAccountRepository;
 
 	@Autowired
@@ -119,6 +125,7 @@ class CertificateInventoryIntegrationTests {
 		assertThat(detailResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 		JsonNode detail = objectMapper.readTree(detailResponse.getBody());
 		assertThat(detail.path("currentVersion").path("publicKeyAlgorithm").asText()).isEqualTo("RSA");
+		assertThat(detail.path("currentVersion").path("publicKeySizeBits").asInt()).isGreaterThanOrEqualTo(2048);
 		assertThat(detail.path("currentVersion").path("chainLength").asInt()).isEqualTo(2);
 		assertThat(detail.path("chain")).hasSize(1);
 		assertThat(detail.path("statusHistory")).hasSize(1);
@@ -402,6 +409,20 @@ class CertificateInventoryIntegrationTests {
 			new CertificateImportRequest(bootstrap.tenantId(), CertificatePemFixtures.EXPIRED_CERTIFICATE, null, null, true, Set.of()),
 			String.class);
 		assertThat(forbiddenImport.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+		ResponseEntity<String> forbiddenPrivateKeyImport = readOnlyClient.postForEntity(
+			url("/api/v1/certificates/import-with-private-key"),
+			new CertificatePrivateKeyImportRequest(
+				bootstrap.tenantId(),
+				CertificatePemFixtures.EXPIRED_CERTIFICATE,
+				null,
+				CertificatePemFixtures.PRIVATE_KEY,
+				null,
+				null,
+				true,
+				Set.of()),
+			String.class);
+		assertThat(forbiddenPrivateKeyImport.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 	}
 
 	@Test
@@ -461,14 +482,72 @@ class CertificateInventoryIntegrationTests {
 				url("/api/v1/certificates/import"),
 				new CertificateImportRequest(
 					bootstrap.tenantId(),
-					CertificatePemFixtures.INVENTORY_CERTIFICATE + "\n-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
+					CertificatePemFixtures.INVENTORY_CERTIFICATE + CertificatePemFixtures.PRIVATE_KEY,
 					null,
 					null,
 					true,
 					Set.of()),
 				String.class);
 		assertThat(privateKey.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat(objectMapper.readTree(privateKey.getBody()).path("message").asText()).doesNotContain("abc");
+		assertThat(objectMapper.readTree(privateKey.getBody()).path("message").asText()).doesNotContain("abc-secret-key-body");
+
+		ResponseEntity<String> chainPrivateKey = TestBootstrap.adminClient(restTemplate)
+			.postForEntity(
+				url("/api/v1/certificates/import"),
+				new CertificateImportRequest(
+					bootstrap.tenantId(),
+					CertificatePemFixtures.INVENTORY_CERTIFICATE,
+					CertificatePemFixtures.PRIVATE_KEY,
+					null,
+					true,
+					Set.of()),
+				String.class);
+		assertThat(chainPrivateKey.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(objectMapper.readTree(chainPrivateKey.getBody()).path("message").asText()).doesNotContain("abc-secret-key-body");
+
+		ResponseEntity<String> missingPrivateKeyBlock = TestBootstrap.adminClient(restTemplate)
+			.postForEntity(
+				url("/api/v1/certificates/import-with-private-key"),
+				new CertificatePrivateKeyImportRequest(
+					bootstrap.tenantId(),
+					CertificatePemFixtures.INVENTORY_CERTIFICATE,
+					null,
+					"not a private key",
+					null,
+					null,
+					true,
+					Set.of()),
+				String.class);
+		assertThat(missingPrivateKeyBlock.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(objectMapper.readTree(missingPrivateKeyBlock.getBody()).path("message").asText())
+			.contains("Private key PEM must contain");
+
+		ResponseEntity<String> disabledPrivateKeyImport = TestBootstrap.adminClient(restTemplate)
+			.postForEntity(
+				url("/api/v1/certificates/import-with-private-key"),
+				new CertificatePrivateKeyImportRequest(
+					bootstrap.tenantId(),
+					CertificatePemFixtures.INVENTORY_CERTIFICATE,
+					null,
+					CertificatePemFixtures.PRIVATE_KEY,
+					null,
+					null,
+					true,
+					Set.of()),
+				String.class);
+		assertThat(disabledPrivateKeyImport.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		JsonNode disabledBody = objectMapper.readTree(disabledPrivateKeyImport.getBody());
+		assertThat(disabledBody.path("code").asText()).isEqualTo("FORBIDDEN");
+		assertThat(disabledBody.path("message").asText()).doesNotContain("abc-secret-key-body");
+		assertThat(versionRepository.count()).isZero();
+		assertThat(auditEventRepository.findAll())
+			.anySatisfy(event -> {
+				assertThat(event.action()).isEqualTo("certificate.private_key_import_rejected");
+				assertThat(event.decision()).isEqualTo(AuditDecision.DENY);
+				assertThat(event.status()).isEqualTo(AuditStatus.FAILURE);
+				assertThat(event.metadata()).contains("\"keyBlockLabel\":\"PRIVATE KEY\"");
+				assertThat(event.metadata()).doesNotContain("abc-secret-key-body");
+			});
 	}
 
 	private CertificateImportResponse importCertificate(

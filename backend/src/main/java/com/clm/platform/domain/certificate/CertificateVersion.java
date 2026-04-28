@@ -58,6 +58,9 @@ public class CertificateVersion {
 	@Column(name = "public_key_algorithm", nullable = false, length = 64)
 	private String publicKeyAlgorithm;
 
+	@Column(name = "public_key_size_bits")
+	private Integer publicKeySizeBits;
+
 	@Column(name = "signature_algorithm", nullable = false, length = 128)
 	private String signatureAlgorithm;
 
@@ -91,6 +94,7 @@ public class CertificateVersion {
 		this.sha256Fingerprint = parsedCertificate.sha256Fingerprint();
 		this.sha1Fingerprint = parsedCertificate.sha1Fingerprint();
 		this.publicKeyAlgorithm = parsedCertificate.publicKeyAlgorithm();
+		this.publicKeySizeBits = parsedCertificate.publicKeySizeBits();
 		this.signatureAlgorithm = parsedCertificate.signatureAlgorithm();
 		this.sans = CertificateTextValues.pack(parsedCertificate.subjectAlternativeNames());
 		this.chainLength = parsedCertificate.chainLength();
@@ -152,6 +156,10 @@ public class CertificateVersion {
 
 	public String publicKeyAlgorithm() {
 		return publicKeyAlgorithm;
+	}
+
+	public Integer publicKeySizeBits() {
+		return publicKeySizeBits;
 	}
 
 	public String signatureAlgorithm() {

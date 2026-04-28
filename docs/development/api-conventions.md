@@ -8,6 +8,7 @@ All public backend APIs live under `/api/v1`.
 - `GET /api/v1/bootstrap/status` - first-run bootstrap status.
 - `POST /api/v1/bootstrap/admin` - one-time bootstrap administrator creation.
 - `POST /api/v1/certificates/import` - import a public PEM leaf certificate and optional public PEM chain.
+- `POST /api/v1/certificates/import-with-private-key` - disabled future key import path with guardrail validation.
 - `POST /api/v1/certificates/source-observations` - record a public certificate observation from a source connector or discovery worker.
 - `GET /api/v1/certificates` - tenant-scoped certificate inventory list.
 - `GET /api/v1/certificates/{certificateId}` - certificate detail with versions, chain, and audit timeline.
@@ -26,7 +27,7 @@ All public backend APIs live under `/api/v1`.
 - `GET /v3/api-docs` - generated OpenAPI JSON.
 - `GET /swagger-ui` - generated Swagger UI.
 
-Certificate inventory APIs do not accept private keys in R1-E04. Key import, issuance, renewal, destinations, plugins, and MCP are later epics.
+The public certificate import path rejects private keys. The private-key import path is present only as a disabled R2-E01 guardrail contract and stores no key material.
 
 ## Authentication
 
@@ -38,7 +39,7 @@ Certificate inventory endpoints use:
 
 - `PERMISSION_CERTIFICATE_READ` for list, detail, and status-history reads.
 - `PERMISSION_CERTIFICATE_READ` for global certificate search.
-- `PERMISSION_CERTIFICATE_IMPORT` for PEM import and source observations.
+- `PERMISSION_CERTIFICATE_IMPORT` for PEM import, the disabled private-key import path, and source observations.
 - `PERMISSION_CERTIFICATE_MANAGE` for tags, metadata, and status updates.
 
 Service account endpoints use `PERMISSION_SERVICE_ACCOUNT_READ` for service account and token metadata reads, and `PERMISSION_SERVICE_ACCOUNT_MANAGE` for create, rotate, and revoke operations.

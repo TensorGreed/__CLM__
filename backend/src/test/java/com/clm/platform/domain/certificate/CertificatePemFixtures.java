@@ -71,6 +71,12 @@ final class CertificatePemFixtures {
 		-----END CERTIFICATE-----
 		""";
 
+	static final String PRIVATE_KEY = """
+		-----BEGIN PRIVATE KEY-----
+		abc-secret-key-body
+		-----END PRIVATE KEY-----
+		""";
+
 	private CertificatePemFixtures() {
 	}
 }

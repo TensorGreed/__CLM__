@@ -26,7 +26,9 @@ R1-E03 adds audit coverage for first-run bootstrap admin creation and the sensit
 
 R1-E04 adds certificate inventory audit events for PEM imports, duplicate import attempts, source observations, tag updates, metadata updates, and status transitions. Certificate detail responses include the most recent audit events for that certificate.
 
-Full certificate lifecycle audit coverage expands further when certificate metadata edits, status transitions, issuance, renewal, deployment, approval, and key handling workflows are implemented.
+R2-E01 adds audit coverage for authorized private-key import attempts rejected by policy.
+
+Full certificate lifecycle audit coverage expands further when issuance, renewal, deployment, approval, export, and real key storage workflows are implemented.
 
 ## Certificate Inventory Actions
 
@@ -36,6 +38,7 @@ Full certificate lifecycle audit coverage expands further when certificate metad
 - `certificate.tags_updated`
 - `certificate.metadata_updated`
 - `certificate.status_changed`
+- `certificate.private_key_import_rejected`
 
 These actions use `resourceType=certificate`, the certificate ID as `resourceId`, the actor and tenant from the authenticated request, and metadata that avoids PEM bodies and private key material.
 
@@ -48,3 +51,5 @@ The foundation redacts assignment-style sensitive values such as:
 - `token=...`
 - `apiKey=...`
 - `privateKey=...`
+
+It also redacts full private key PEM blocks before diagnostic text is returned or persisted.

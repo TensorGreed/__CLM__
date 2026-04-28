@@ -195,6 +195,7 @@ export interface CertificateVersionResponse {
   sha256Fingerprint: string
   sha1Fingerprint: string
   publicKeyAlgorithm: string
+  publicKeySizeBits?: number | null
   signatureAlgorithm: string
   subjectAlternativeNames: string[]
   chainLength: number
