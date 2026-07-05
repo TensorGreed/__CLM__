@@ -9,6 +9,6 @@
     "frontend:lint": "npm --prefix frontend run lint"
   },
   "devDependencies": {
-    "markdownlint-cli2": "^0.22.1"
+    "markdownlint-cli2": "^0.23.0"
   }
 }
